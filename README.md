@@ -11,10 +11,10 @@ pop_vocal:
 Conductor -> Lyrics -> Melody -> Arrange -> Prompt Compiler
 
 classical_instrumental:
-Conductor -> Melody -> Arrange -> Prompt Compiler
+Conductor -> Melody -> Arrange -> optional Score Export -> Prompt Compiler
 ```
 
-Agent 使用 Pydantic 模型传递结构化状态。古典器乐工作流会跳过歌词节点。当前阶段不包含 Web 页面、MusicXML/MIDI 生成和自定义工作流编辑器。
+Agent 使用 Pydantic 模型传递结构化状态。古典器乐工作流会跳过歌词节点，并可根据 Melody Agent 的 `score_spec` 在项目 `artifacts/` 目录导出 MusicXML 与 MIDI。
 
 ## 环境
 

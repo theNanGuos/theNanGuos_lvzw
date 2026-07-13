@@ -80,6 +80,12 @@ class LocalProjectStore:
             raise ProjectNotFoundError(run_id)
         return RunResult.model_validate_json(path.read_text(encoding="utf-8"))
 
+    def artifact_dir(self, project_id: str) -> Path:
+        self.get_project(project_id)
+        path = self._project_dir(project_id) / "artifacts"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
     def _project_dir(self, project_id: str) -> Path:
         if not project_id.isalnum():
             raise ProjectNotFoundError(project_id)

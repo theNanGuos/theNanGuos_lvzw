@@ -51,8 +51,29 @@ class MelodyPlan(BaseModel):
     emotional_arc: str
 
 
+class NoteEvent(BaseModel):
+    pitch: str | None = None
+    duration: float = Field(gt=0, le=16)
+    velocity: int = Field(default=72, ge=1, le=127)
+
+
+class ScorePart(BaseModel):
+    name: str
+    instrument: str
+    notes: list[NoteEvent] = Field(min_length=1, max_length=256)
+
+
+class ScoreSpec(BaseModel):
+    title: str
+    tempo_bpm: int = Field(ge=30, le=240)
+    time_signature: str = "4/4"
+    key_signature: str = "C"
+    parts: list[ScorePart] = Field(min_length=1, max_length=16)
+
+
 class MelodyOutput(BaseModel):
     melody_plan: MelodyPlan
+    score_spec: ScoreSpec | None = None
 
 
 class ArrangementPlan(BaseModel):
@@ -78,5 +99,8 @@ class State(TypedDict, total=False):
     instructions_for_agents: dict[str, list[str]]
     lyrics: LyricsDraft
     melody_plan: MelodyPlan
+    score_spec: ScoreSpec | None
     arrangement_plan: ArrangementPlan
+    score_artifacts: dict[str, str]
+    artifact_dir: str
     final_prompt: str

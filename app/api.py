@@ -86,6 +86,7 @@ def create_app(
                 {
                     "user_request": project.user_request,
                     "preset": project.preset,
+                    "artifact_dir": str(project_store.artifact_dir(project_id)),
                 }
             )
             return project_store.save_run(project_id, result)
