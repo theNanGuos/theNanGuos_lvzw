@@ -1,6 +1,7 @@
 from agents.base import Agent
 from langchain_core.language_models.chat_models import BaseChatModel
 from lib.prompt import conductor
+from models.state import ConductorOutput
 
 class ConductorAgent(Agent):
     def __init__(self, llm: BaseChatModel):
@@ -9,5 +10,7 @@ class ConductorAgent(Agent):
             llm = llm,
             system_prompt = (
                 conductor()
-            )
+            ),
+            output_schema=ConductorOutput,
+            input_fields=("user_request",),
         )

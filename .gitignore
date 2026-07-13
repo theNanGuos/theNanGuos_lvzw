@@ -1,5 +1,11 @@
 ## python
 .venv/
+__pycache__/
+*.py[cod]
 
 ## env
 .env
+
+## local runtime data
+data/
+works/*.mp3

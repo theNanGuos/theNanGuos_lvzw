@@ -1,43 +1,39 @@
-# src/multi_agent_demo/graph.py
-
+from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END, START, StateGraph
 
-from agents.base import Agent
+from agents.arrange import ArrangeAgent
 from agents.conductor import ConductorAgent
 from agents.lyrics import LyricsAgent
 from agents.melody import MelodyAgent
-from agents.arrange import ArrangeAgent
-from models.state import State
+from agents.prompt_compiler import PromptCompilerAgent
+from models.state import State, WorkflowName
 
 
-def route_from_start(state: State) -> str:
-    return "conductor"
+def route_workflow(state: State) -> WorkflowName:
+    return state["workflow"]
 
 
-def build_graph(llm):
+def build_graph(llm: BaseChatModel):
     builder = StateGraph(State)
 
-    conductor = ConductorAgent(llm)
-    lyrics = LyricsAgent(llm)
-    melody = MelodyAgent(llm)
-    arrange = ArrangeAgent(llm)
+    builder.add_node("conductor", ConductorAgent(llm))
+    builder.add_node("lyrics", LyricsAgent(llm))
+    builder.add_node("melody", MelodyAgent(llm))
+    builder.add_node("arrange", ArrangeAgent(llm))
+    builder.add_node("prompt_compiler", PromptCompilerAgent(llm))
 
-    builder.add_node("conductor", conductor)
-    builder.add_node("lyrics", lyrics)
-    builder.add_node("melody", melody)
-    builder.add_node("arrange", arrange)
-
+    builder.add_edge(START, "conductor")
     builder.add_conditional_edges(
-        START,
-        route_from_start,
+        "conductor",
+        route_workflow,
         {
-            "conductor": "conductor",
+            "pop_vocal": "lyrics",
+            "classical_instrumental": "melody",
         },
     )
-
-    builder.add_edge("conductor", "melody")
-    builder.add_edge("melody", "lyrics")
-    builder.add_edge("lyrics", "arrange")
-    builder.add_edge("arrange", END)
+    builder.add_edge("lyrics", "melody")
+    builder.add_edge("melody", "arrange")
+    builder.add_edge("arrange", "prompt_compiler")
+    builder.add_edge("prompt_compiler", END)
 
     return builder.compile()

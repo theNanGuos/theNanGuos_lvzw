@@ -22,3 +22,8 @@ def melody() -> str:
 def arrange() -> str:
     path  = PROJECT_DIR / "prompts" / "arrange.md"
     return read(path)
+
+
+def prompt_compiler() -> str:
+    path = PROJECT_DIR / "prompts" / "prompt_compiler.md"
+    return read(path)

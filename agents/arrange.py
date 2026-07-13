@@ -1,6 +1,7 @@
 from agents.base import Agent
 from langchain_core.language_models.chat_models import BaseChatModel
 from lib.prompt import arrange
+from models.state import ArrangementOutput
 
 class ArrangeAgent(Agent):
     def __init__(self, llm: BaseChatModel):
@@ -9,5 +10,13 @@ class ArrangeAgent(Agent):
             llm = llm,
             system_prompt = (
                 arrange()
-            )
+            ),
+            output_schema=ArrangementOutput,
+            input_fields=(
+                "user_request",
+                "creative_brief",
+                "lyrics",
+                "melody_plan",
+                "instructions_for_agents",
+            ),
         )
