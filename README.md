@@ -16,6 +16,10 @@ Conductor -> Melody -> Arrange -> optional Score Export -> Prompt Compiler
 
 Agent 使用 Pydantic 模型传递结构化状态。古典器乐工作流会跳过歌词节点，并可根据 Melody Agent 的 `score_spec` 在项目 `artifacts/` 目录导出 MusicXML 与 MIDI。
 
+- FastAPI 提供本地项目、音频上传和工作流运行接口。
+- React 创作台提供预设选择、参考音频上传、工作流画布和结果展示。
+- KIE/Suno 接入通过独立 provider 封装，默认不会产生真实请求。
+
 ## 环境
 
 - Python 3.12+
@@ -72,6 +76,15 @@ npm run dev
 uv run pytest
 ```
 
+前端验证：
+
+```bash
+cd frontend
+npm run lint
+npm run build
+npm run test:e2e
+```
+
 ## 目录
 
 - `agents/`：Agent 节点。
@@ -79,6 +92,9 @@ uv run pytest
 - `models/`：结构化状态和输出模型。
 - `prompts/`：各角色的系统提示词。
 - `lib/`：提示词加载、音乐服务等工具。
-- `data/`：后续用于本地项目和运行数据，不提交版本库。
+- `providers/`：音乐生成供应商适配。
+- `frontend/`：本地 React 创作工作台。
+- `docs/`：架构与设计说明。
+- `data/`：本地项目、上传资产和运行数据，不提交版本库。
 
-开发约束和后续顺序见 [AGENTS.md](AGENTS.md)。
+开发约束见 [AGENTS.md](AGENTS.md)，当前架构见 [docs/architecture.md](docs/architecture.md)。
