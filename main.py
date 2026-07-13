@@ -28,7 +28,10 @@ def main() -> None:
     if args.generate:
         from lib.suno import generate
 
-        generate(final_prompt)
+        generate(
+            final_prompt,
+            instrumental=result["workflow"] == "classical_instrumental",
+        )
 
 
 if __name__ == "__main__":
