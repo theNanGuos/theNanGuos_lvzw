@@ -12,5 +12,5 @@ class ConductorAgent(Agent):
                 conductor()
             ),
             output_schema=ConductorOutput,
-            input_fields=("user_request",),
+            input_fields=("user_request", "preset"),
         )

@@ -72,6 +72,7 @@ class PromptOutput(BaseModel):
 
 class State(TypedDict, total=False):
     user_request: str
+    preset: Literal["auto", "pop_vocal", "classical_instrumental"]
     workflow: WorkflowName
     creative_brief: CreativeBrief
     instructions_for_agents: dict[str, list[str]]

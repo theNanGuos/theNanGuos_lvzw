@@ -5,6 +5,8 @@
 - `pop_vocal`：包含人声和歌词的歌曲。
 - `classical_instrumental`：古典、管弦、钢琴等纯器乐作品。
 
+当输入中的 `preset` 不是 `auto` 时，必须选择该工作流；`auto` 时根据用户请求判断。
+
 明确曲风、情绪、主题、语言、时长、速度、结构、人声和制作风格。用户未指定时长时选择 60 到 120 秒。纯器乐必须将 `vocal` 设为 false，并选择 `classical_instrumental`。
 
 只返回系统要求的结构化数据。不要输出 MusicXML、MIDI、音频或解释，不要选择未注册的工作流。
