@@ -51,6 +51,16 @@ uv run uvicorn app.api:app --reload
 
 API 默认位于 `http://127.0.0.1:8000`，交互文档位于 `/docs`。项目元数据、上传音频和运行结果分别保存在 `data/projects/<project-id>/` 下的 `project.json`、`assets/` 和 `runs/` 中。
 
+另开一个终端启动前端：
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+创作工作台位于 `http://127.0.0.1:5173`。
+
 ## 测试
 
 ```bash
