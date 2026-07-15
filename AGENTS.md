@@ -59,10 +59,10 @@ uv run python -m compileall -q agents app lib models main.py
 ## 实现状态
 
 - [x] 完善依赖、领域状态和结构化 Agent 输出。
-- [x] 实现流行歌曲与古典器乐两个预设 LangGraph 工作流。
+- [x] 实现流行歌曲、古典器乐、电子器乐与影视配乐等可组合 LangGraph 工作流。
 - [x] 增加本地项目文件和 FastAPI 接口。
 - [x] 增加前端创作页面与工作流画布。
 - [x] 接入 MusicXML/MIDI 和音乐生成 provider。
-- [ ] 接入可选的本地 demo 音频渲染器。
+- [x] 接入可选的本地 demo 音频渲染器。
 - [ ] 定义并执行受约束的自定义工作流 JSON。
 - [ ] 在前端管理和恢复已有本地项目。

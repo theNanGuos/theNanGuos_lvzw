@@ -2,7 +2,12 @@ from typing import Literal, TypedDict
 
 from pydantic import BaseModel, Field
 
-WorkflowName = Literal["pop_vocal", "classical_instrumental"]
+WorkflowName = Literal[
+    "pop_vocal",
+    "classical_instrumental",
+    "electronic_instrumental",
+    "soundtrack_score",
+]
 
 
 class CreativeBrief(BaseModel):
@@ -87,6 +92,49 @@ class ArrangementOutput(BaseModel):
     arrangement_plan: ArrangementPlan
 
 
+class HarmonyPlan(BaseModel):
+    key_center: str
+    chord_progression: list[str] = Field(default_factory=list)
+    harmonic_rhythm: str
+    tension_strategy: str
+
+
+class HarmonyOutput(BaseModel):
+    harmony_plan: HarmonyPlan
+
+
+class RhythmPlan(BaseModel):
+    groove: str
+    percussion: list[str] = Field(default_factory=list)
+    rhythmic_motifs: list[str] = Field(default_factory=list)
+    energy_curve: str
+
+
+class RhythmOutput(BaseModel):
+    rhythm_plan: RhythmPlan
+
+
+class SoundDesignPlan(BaseModel):
+    palette: list[str] = Field(default_factory=list)
+    signature_sounds: list[str] = Field(default_factory=list)
+    spatial_motion: str
+    texture_notes: str
+
+
+class SoundDesignOutput(BaseModel):
+    sound_design_plan: SoundDesignPlan
+
+
+class MixReview(BaseModel):
+    focus: str
+    balance_notes: list[str] = Field(default_factory=list)
+    risk_checks: list[str] = Field(default_factory=list)
+
+
+class MixReviewOutput(BaseModel):
+    mix_review: MixReview
+
+
 class PromptOutput(BaseModel):
     final_prompt: str = Field(min_length=1, max_length=500)
 
@@ -99,7 +147,13 @@ class AudioReference(BaseModel):
 
 class State(TypedDict, total=False):
     user_request: str
-    preset: Literal["auto", "pop_vocal", "classical_instrumental"]
+    preset: Literal[
+        "auto",
+        "pop_vocal",
+        "classical_instrumental",
+        "electronic_instrumental",
+        "soundtrack_score",
+    ]
     reference_audio_paths: list[str]
     audio_references: list[AudioReference]
     workflow: WorkflowName
@@ -108,7 +162,11 @@ class State(TypedDict, total=False):
     lyrics: LyricsDraft
     melody_plan: MelodyPlan
     score_spec: ScoreSpec | None
+    harmony_plan: HarmonyPlan
+    rhythm_plan: RhythmPlan
+    sound_design_plan: SoundDesignPlan
     arrangement_plan: ArrangementPlan
+    mix_review: MixReview
     score_artifacts: dict[str, str]
     artifact_dir: str
     final_prompt: str

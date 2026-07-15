@@ -160,6 +160,8 @@ function App() {
                     ['auto', '自动'],
                     ['pop_vocal', '流行人声'],
                     ['classical_instrumental', '古典器乐'],
+                    ['electronic_instrumental', '电子器乐'],
+                    ['soundtrack_score', '影视配乐'],
                   ] as const).map(([value, label]) => (
                     <button
                       type="button"
@@ -277,9 +279,17 @@ function App() {
                 <p>拖动节点检查当前预设的执行路径</p>
               </div>
               <div className="preset-control compact-control">
-                {(['auto', 'pop_vocal', 'classical_instrumental'] as Preset[]).map((value) => (
+                {(['auto', 'pop_vocal', 'classical_instrumental', 'electronic_instrumental', 'soundtrack_score'] as Preset[]).map((value) => (
                   <button key={value} className={preset === value ? 'selected' : ''} onClick={() => setPreset(value)}>
-                    {value === 'auto' ? '自动' : value === 'pop_vocal' ? '流行人声' : '古典器乐'}
+                    {value === 'auto'
+                      ? '自动'
+                      : value === 'pop_vocal'
+                        ? '流行人声'
+                        : value === 'classical_instrumental'
+                          ? '古典器乐'
+                          : value === 'electronic_instrumental'
+                            ? '电子器乐'
+                            : '影视配乐'}
                   </button>
                 ))}
               </div>

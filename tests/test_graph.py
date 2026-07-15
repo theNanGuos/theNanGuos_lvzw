@@ -6,9 +6,13 @@ from app.graph import build_graph
 from models.state import (
     ArrangementOutput,
     ConductorOutput,
+    HarmonyOutput,
     LyricsOutput,
     MelodyOutput,
+    MixReviewOutput,
     PromptOutput,
+    RhythmOutput,
+    SoundDesignOutput,
 )
 
 
@@ -114,6 +118,57 @@ def arrangement_output():
     )
 
 
+def harmony_output():
+    return HarmonyOutput.model_validate(
+        {
+            "harmony_plan": {
+                "key_center": "C major",
+                "chord_progression": ["I", "V", "vi", "IV"],
+                "harmonic_rhythm": "每两小节换和弦",
+                "tension_strategy": "副歌增加明亮属功能回归",
+            }
+        }
+    )
+
+
+def rhythm_output():
+    return RhythmOutput.model_validate(
+        {
+            "rhythm_plan": {
+                "groove": "稳定四拍，副歌加入切分",
+                "percussion": ["鼓组", "拍手"],
+                "rhythmic_motifs": ["弱起", "切分强调"],
+                "energy_curve": "逐段增强",
+            }
+        }
+    )
+
+
+def sound_design_output():
+    return SoundDesignOutput.model_validate(
+        {
+            "sound_design_plan": {
+                "palette": ["钢琴", "柔和 pad"],
+                "signature_sounds": ["过门 swell"],
+                "spatial_motion": "副歌拓宽声场",
+                "texture_notes": "保持 hook 清晰",
+            }
+        }
+    )
+
+
+def mix_review_output():
+    return MixReviewOutput.model_validate(
+        {
+            "mix_review": {
+                "focus": "主旋律清晰",
+                "balance_notes": ["低频稳定", "人声靠前"],
+                "risk_checks": ["避免配器遮挡 hook"],
+            }
+        }
+    )
+
+
 def test_pop_workflow_includes_lyrics():
     llm = ScriptedStructuredModel(
         [
@@ -131,7 +186,11 @@ def test_pop_workflow_includes_lyrics():
                 }
             ),
             melody_output(),
+            harmony_output(),
+            rhythm_output(),
             arrangement_output(),
+            sound_design_output(),
+            mix_review_output(),
             PromptOutput(final_prompt="温暖中文流行，柔和女声，钢琴与弦乐渐进。"),
         ]
     )
@@ -142,7 +201,11 @@ def test_pop_workflow_includes_lyrics():
     assert result["lyrics"].hook == "灯火仍在等我"
     assert result["final_prompt"].startswith("温暖中文流行")
     assert LyricsOutput in llm.calls
-    assert llm.plain_invocations == 5
+    assert HarmonyOutput in llm.calls
+    assert RhythmOutput in llm.calls
+    assert SoundDesignOutput in llm.calls
+    assert MixReviewOutput in llm.calls
+    assert llm.plain_invocations == 9
     assert llm.methods == []
 
 
@@ -151,7 +214,10 @@ def test_classical_workflow_skips_lyrics():
         [
             conductor_output("classical_instrumental", vocal=False),
             melody_output(),
+            harmony_output(),
             arrangement_output(),
+            sound_design_output(),
+            mix_review_output(),
             PromptOutput(final_prompt="恢弘古典器乐，钢琴与弦乐展开远征主题，无人声。"),
         ]
     )
@@ -162,6 +228,53 @@ def test_classical_workflow_skips_lyrics():
     assert "lyrics" not in result
     assert "无人声" in result["final_prompt"]
     assert LyricsOutput not in llm.calls
+    assert RhythmOutput not in llm.calls
+
+
+def test_electronic_workflow_starts_with_rhythm_and_skips_lyrics():
+    llm = ScriptedStructuredModel(
+        [
+            conductor_output("electronic_instrumental", vocal=False),
+            rhythm_output(),
+            melody_output(),
+            harmony_output(),
+            arrangement_output(),
+            sound_design_output(),
+            mix_review_output(),
+            PromptOutput(final_prompt="电子器乐，合成器低频，四拍律动，明亮空间感。"),
+        ]
+    )
+
+    result = build_graph(llm).invoke({"user_request": "生成一首电子器乐"})
+
+    assert result["workflow"] == "electronic_instrumental"
+    assert "lyrics" not in result
+    assert llm.calls[:4] == [
+        ConductorOutput,
+        RhythmOutput,
+        MelodyOutput,
+        HarmonyOutput,
+    ]
+
+
+def test_soundtrack_workflow_uses_score_style_branch_without_rhythm():
+    llm = ScriptedStructuredModel(
+        [
+            conductor_output("soundtrack_score", vocal=False),
+            melody_output(),
+            harmony_output(),
+            arrangement_output(),
+            sound_design_output(),
+            mix_review_output(),
+            PromptOutput(final_prompt="影视配乐，弦乐主题，宽广空间，情绪递进。"),
+        ]
+    )
+
+    result = build_graph(llm).invoke({"user_request": "生成一首电影感配乐"})
+
+    assert result["workflow"] == "soundtrack_score"
+    assert SoundDesignOutput in llm.calls
+    assert RhythmOutput not in llm.calls
 
 
 def test_prompt_json_accepts_fenced_json():

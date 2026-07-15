@@ -5,7 +5,13 @@ from uuid import uuid4
 from pydantic import BaseModel, Field
 
 ProjectStatus = Literal["draft", "running", "completed", "failed"]
-ProjectPreset = Literal["auto", "pop_vocal", "classical_instrumental"]
+ProjectPreset = Literal[
+    "auto",
+    "pop_vocal",
+    "classical_instrumental",
+    "electronic_instrumental",
+    "soundtrack_score",
+]
 
 
 def utc_now() -> datetime:

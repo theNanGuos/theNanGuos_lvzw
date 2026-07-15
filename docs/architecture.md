@@ -14,10 +14,12 @@ score tools / music generation providers
 
 ## 工作流
 
-当前提供两个受约束的预设：
+当前提供多个受约束的预设，不同音乐类型复用节点但走不同路径：
 
-- `pop_vocal`：Conductor、Lyrics、Melody、Arrange、Prompt Compiler。
-- `classical_instrumental`：Conductor、Melody、Arrange、可选 Score Export、Prompt Compiler。
+- `pop_vocal`：Audio Reference、Conductor、Lyrics、Melody、Harmony、Rhythm、Arrange、Sound Design、Mix Review、Prompt Compiler。
+- `classical_instrumental`：Audio Reference、Conductor、Melody、Harmony、Arrange、可选 Score Export、Sound Design、Mix Review、Prompt Compiler。
+- `electronic_instrumental`：Audio Reference、Conductor、Rhythm、Melody、Harmony、Arrange、Sound Design、Mix Review、Prompt Compiler。
+- `soundtrack_score`：Audio Reference、Conductor、Melody、Harmony、Arrange、Sound Design、Mix Review、Prompt Compiler。
 
 Conductor 只能选择已注册的预设。所有 LLM 节点使用 Pydantic 结构化输出，关键领域数据不从自由文本消息中解析。
 

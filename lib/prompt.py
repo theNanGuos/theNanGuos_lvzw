@@ -24,6 +24,26 @@ def arrange() -> str:
     return read(path)
 
 
+def harmony() -> str:
+    path = PROJECT_DIR / "prompts" / "harmony.md"
+    return read(path)
+
+
+def rhythm() -> str:
+    path = PROJECT_DIR / "prompts" / "rhythm.md"
+    return read(path)
+
+
+def sound_design() -> str:
+    path = PROJECT_DIR / "prompts" / "sound_design.md"
+    return read(path)
+
+
+def mix_review() -> str:
+    path = PROJECT_DIR / "prompts" / "mix_review.md"
+    return read(path)
+
+
 def prompt_compiler() -> str:
     path = PROJECT_DIR / "prompts" / "prompt_compiler.md"
     return read(path)

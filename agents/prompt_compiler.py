@@ -18,14 +18,22 @@ class PromptCompilerAgent(Agent):
                 "creative_brief",
                 "lyrics",
                 "melody_plan",
+                "harmony_plan",
+                "rhythm_plan",
+                "sound_design_plan",
                 "arrangement_plan",
+                "mix_review",
             ),
         )
 
     def fallback(self, state: State, exc: Exception) -> PromptOutput:
         brief = state.get("creative_brief")
         melody = state.get("melody_plan")
+        harmony = state.get("harmony_plan")
+        rhythm = state.get("rhythm_plan")
+        sound_design = state.get("sound_design_plan")
         arrangement = state.get("arrangement_plan")
+        mix_review = state.get("mix_review")
         lyrics = state.get("lyrics")
         parts = [
             getattr(brief, "genre", "") if brief else "",
@@ -33,8 +41,12 @@ class PromptCompilerAgent(Agent):
             getattr(brief, "production_style", "") if brief else "",
             getattr(melody, "tempo", "") if melody else "",
             getattr(melody, "melody_style", "") if melody else "",
+            "、".join(getattr(harmony, "chord_progression", []) or []) if harmony else "",
+            getattr(rhythm, "groove", "") if rhythm else "",
+            "、".join(getattr(sound_design, "palette", []) or []) if sound_design else "",
             "、".join(getattr(arrangement, "instrumentation", []) or []) if arrangement else "",
             getattr(arrangement, "production", "") if arrangement else "",
+            getattr(mix_review, "focus", "") if mix_review else "",
         ]
         if lyrics:
             parts.append(f"hook: {lyrics.hook}")

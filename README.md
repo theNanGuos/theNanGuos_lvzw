@@ -4,17 +4,23 @@
 
 ## 当前能力
 
-目前实现两个预设工作流：
+目前实现多个可组合预设工作流：
 
 ```text
 pop_vocal:
-Conductor -> Lyrics -> Melody -> Arrange -> Prompt Compiler
+Audio Reference -> Conductor -> Lyrics -> Melody -> Harmony -> Rhythm -> Arrange -> Sound Design -> Mix Review -> Prompt Compiler
 
 classical_instrumental:
-Conductor -> Melody -> Arrange -> optional Score Export -> Prompt Compiler
+Audio Reference -> Conductor -> Melody -> Harmony -> Arrange -> optional Score Export -> Sound Design -> Mix Review -> Prompt Compiler
+
+electronic_instrumental:
+Audio Reference -> Conductor -> Rhythm -> Melody -> Harmony -> Arrange -> Sound Design -> Mix Review -> Prompt Compiler
+
+soundtrack_score:
+Audio Reference -> Conductor -> Melody -> Harmony -> Arrange -> Sound Design -> Mix Review -> Prompt Compiler
 ```
 
-Agent 使用 Pydantic 模型传递结构化状态。古典器乐工作流会跳过歌词节点，并可根据 Melody Agent 的 `score_spec` 在项目 `artifacts/` 目录导出 MusicXML 与 MIDI。
+Agent 使用 Pydantic 模型传递结构化状态。不同音乐类型会组合不同节点：人声流行包含 Lyrics，电子器乐先做 Rhythm，古典和影视配乐跳过 Lyrics 并可根据 Melody Agent 的 `score_spec` 在项目 `artifacts/` 目录导出 MusicXML 与 MIDI。
 
 - FastAPI 提供本地项目、音频上传和工作流运行接口。
 - React 创作台提供预设选择、参考音频上传、工作流画布和结果展示。

@@ -56,7 +56,7 @@ button { letter-spacing: 0; }
 .field textarea { min-height: 138px; resize: vertical; padding: 11px; line-height: 1.6; }
 .field input:focus, .field textarea:focus { border-color: #76877e; box-shadow: 0 0 0 3px rgba(63,100,81,.08); }
 .field small { justify-self: end; color: #99a19d; font-size: 9px; margin-top: -23px; margin-right: 9px; pointer-events: none; }
-.preset-control { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 3px; background: #edf0ee; border-radius: 6px; }
+.preset-control { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 4px; padding: 3px; background: #edf0ee; border-radius: 6px; }
 .preset-control button { min-height: 31px; padding: 4px 6px; border: 0; border-radius: 4px; color: #6a746f; background: transparent; font-size: 10px; cursor: pointer; }
 .preset-control button.selected { background: white; color: var(--ink); box-shadow: 0 1px 4px rgba(21,34,28,.12); font-weight: 700; }
 .upload-zone { min-height: 78px; border: 1px dashed #bcc6c0; border-radius: 6px; background: #f8faf8; display: grid; grid-template-columns: 32px 1fr; grid-template-rows: 22px 18px; align-content: center; padding: 10px 14px; cursor: pointer; }
@@ -111,6 +111,10 @@ button { letter-spacing: 0; }
 .agent-node strong { font-size: 11px; color: #29322e; }
 .agent-node small { font-size: 8px; color: #7d8882; margin-top: 3px; }
 .agent-node.conductor > span { background: #f8e5df; color: var(--accent-dark); }
+.agent-node.rhythm > span { background: #edf0ff; color: #3f558f; }
+.agent-node.harmony > span { background: #f4ecff; color: #67448d; }
+.agent-node.sound > span { background: #e6f3f5; color: #2d6872; }
+.agent-node.review > span { background: #fff2df; color: #9b5d1c; }
 .agent-node.prompt > span { background: #dfeee8; color: var(--green); }
 .react-flow__handle { width: 6px; height: 6px; background: #7c8982; border: 1px solid white; }
 .react-flow__controls { box-shadow: none; border: 1px solid var(--line); }

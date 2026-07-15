@@ -1,4 +1,9 @@
-export type Preset = 'auto' | 'pop_vocal' | 'classical_instrumental'
+export type Preset =
+  | 'auto'
+  | 'pop_vocal'
+  | 'classical_instrumental'
+  | 'electronic_instrumental'
+  | 'soundtrack_score'
 
 export interface Project {
   id: string
