@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 
 import httpx
+from pydantic import BaseModel, Field
 
 from lib.logging_config import get_logger, log_context
 from providers.base import GeneratedTrack
@@ -39,6 +40,14 @@ STYLE_LIMITS = {
     "V5_5": 1000,
 }
 logger = get_logger(__name__)
+
+
+class SunoTrack(BaseModel):
+    title: str
+    audio_url: str
+    image_url: str | None = None
+    style: str | None = None
+    duration_seconds: float | None = Field(default=None, ge=0)
 
 
 class KieSunoProvider:
@@ -186,27 +195,59 @@ class KieSunoProvider:
 
     async def download_tracks(
         self,
-        tracks: list[tuple[str, str]],
+        tracks: list[SunoTrack],
         output_dir: Path | str,
     ) -> list[GeneratedTrack]:
         directory = Path(output_dir)
         directory.mkdir(parents=True, exist_ok=True)
         results = []
         used_names: set[str] = set()
-        for index, (title, url) in enumerate(tracks, start=1):
-            stem = self.safe_filename(title) or f"track-{index}"
+        for index, track in enumerate(tracks, start=1):
+            stem = self.safe_filename(track.title) or f"track-{index}"
             unique_stem = stem
             suffix = 2
-            while unique_stem in used_names:
+            while unique_stem in used_names or self.stem_exists(directory, unique_stem):
                 unique_stem = f"{stem}-{suffix}"
                 suffix += 1
             used_names.add(unique_stem)
             path = directory / f"{unique_stem}.mp3"
-            response = await self.client.get(url)
+            response = await self.client.get(track.audio_url)
             response.raise_for_status()
             path.write_bytes(response.content)
-            logger.info("music_track_downloaded title=%s path=%s size=%s", title, path, len(response.content))
-            results.append(GeneratedTrack(title=title, source_url=url, local_path=path))
+            logger.info(
+                "music_track_downloaded title=%s path=%s size=%s",
+                track.title,
+                path,
+                len(response.content),
+            )
+
+            cover_path = None
+            if track.image_url:
+                cover_response = await self.client.get(track.image_url)
+                cover_response.raise_for_status()
+                cover_suffix = self.image_suffix(
+                    track.image_url,
+                    cover_response.headers.get("content-type"),
+                )
+                cover_path = directory / f"{unique_stem}{cover_suffix}"
+                cover_path.write_bytes(cover_response.content)
+                logger.info(
+                    "music_cover_downloaded title=%s path=%s size=%s",
+                    track.title,
+                    cover_path,
+                    len(cover_response.content),
+                )
+            results.append(
+                GeneratedTrack(
+                    title=track.title,
+                    source_url=track.audio_url,
+                    local_path=path,
+                    cover_source_url=track.image_url,
+                    cover_path=cover_path,
+                    style=track.style,
+                    duration_seconds=track.duration_seconds,
+                )
+            )
         return results
 
     async def aclose(self) -> None:
@@ -228,10 +269,16 @@ class KieSunoProvider:
         return data
 
     @staticmethod
-    def extract_tracks(task: dict) -> list[tuple[str, str]]:
+    def extract_tracks(task: dict) -> list[SunoTrack]:
         suno_data = task.get("response", {}).get("sunoData", [])
         return [
-            (str(item.get("title") or "untitled"), item["audioUrl"])
+            SunoTrack(
+                title=str(item.get("title") or "untitled"),
+                audio_url=item["audioUrl"],
+                image_url=item.get("imageUrl") or item.get("image_url") or item.get("coverUrl"),
+                style=item.get("tags") or item.get("style"),
+                duration_seconds=item.get("duration"),
+            )
             for item in suno_data
             if item.get("audioUrl")
         ]
@@ -240,6 +287,26 @@ class KieSunoProvider:
     def safe_filename(title: str) -> str:
         cleaned = re.sub(r"[\\/:*?\"<>|\x00-\x1f]", "-", title).strip(" .-")
         return cleaned[:80]
+
+    @staticmethod
+    def image_suffix(url: str, content_type: str | None) -> str:
+        content_type = (content_type or "").split(";", 1)[0].lower()
+        by_content_type = {
+            "image/png": ".png",
+            "image/webp": ".webp",
+            "image/jpeg": ".jpg",
+        }
+        if content_type in by_content_type:
+            return by_content_type[content_type]
+        suffix = Path(url.split("?", 1)[0]).suffix.lower()
+        return suffix if suffix in {".jpg", ".jpeg", ".png", ".webp"} else ".jpg"
+
+    @staticmethod
+    def stem_exists(directory: Path, stem: str) -> bool:
+        return any(
+            (directory / f"{stem}{suffix}").exists()
+            for suffix in (".mp3", ".jpg", ".jpeg", ".png", ".webp")
+        )
 
     @staticmethod
     def poll_interval(elapsed: float) -> int:

@@ -90,14 +90,19 @@ class LocalMemoryStore:
 
     @staticmethod
     def portfolio_item(project: Project) -> PortfolioItem:
+        completed = project.status == "completed"
         return PortfolioItem(
             project_id=project.id,
             title=project.title,
             user_request=project.user_request,
             preset=project.preset,
             status=project.status,
-            progress=project.progress,
-            current_stage=project.current_stage,
+            progress=100 if completed and project.progress == 0 else project.progress,
+            current_stage=(
+                "completed"
+                if completed and project.current_stage == "draft"
+                else project.current_stage
+            ),
             latest_run_id=project.latest_run_id,
             updated_at=project.updated_at,
         )

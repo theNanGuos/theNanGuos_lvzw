@@ -8,6 +8,10 @@ class GeneratedTrack(BaseModel):
     title: str
     source_url: str
     local_path: Path
+    cover_source_url: str | None = None
+    cover_path: Path | None = None
+    style: str | None = None
+    duration_seconds: float | None = None
 
 
 class MusicGenerationProvider(Protocol):

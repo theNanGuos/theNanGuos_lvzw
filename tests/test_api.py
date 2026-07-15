@@ -51,13 +51,19 @@ class FakeMusicGenerator:
             }
         )
         path = output_dir / "generated.mp3"
+        cover_path = output_dir / "generated.jpg"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b"mp3 data")
+        cover_path.write_bytes(b"cover data")
         return [
             GeneratedTrack(
                 title=title or "generated",
                 source_url="https://audio.test/generated.mp3",
                 local_path=path,
+                cover_source_url="https://image.test/generated.jpg",
+                cover_path=cover_path,
+                style="cinematic piano",
+                duration_seconds=120,
             )
         ]
 
@@ -149,6 +155,7 @@ def test_project_lifecycle_is_persisted_locally(tmp_path):
     assert run["state"]["final_prompt"] == "恢弘钢琴协奏曲，无人声。"
     assert run["state"]["demo_audio"]["audio_url"].endswith("-demo.wav")
     assert run["state"]["generated_tracks"][0]["audio_url"] == "/works/generated.mp3"
+    assert run["state"]["generated_tracks"][0]["cover_url"] == "/works/generated.jpg"
     assert run["state"]["generated_audio_analysis"][0]["waveform_url"] == "/works/generated-waveform.png"
     assert run["state"]["generated_audio_analysis"][0]["inspection"]["duration_seconds"] == 123.4
     assert generator.inputs[0]["output_dir"] == tmp_path / "works"
@@ -288,6 +295,9 @@ def test_chat_session_routes_workflow_and_persists_memory(tmp_path):
     portfolio = client.get("/api/portfolio").json()
     assert portfolio[0]["project_id"] == payload["project_id"]
     assert portfolio[0]["status"] == "completed"
+    assert portfolio[0]["tracks"][0]["cover_url"] == "/works/generated.jpg"
+    assert portfolio[0]["tracks"][0]["duration_seconds"] == 123.4
+    assert portfolio[0]["tracks"][0]["style"] == "cinematic piano"
 
 
 def test_app_startup_marks_orphaned_local_run_as_interrupted(tmp_path):

@@ -30,8 +30,18 @@ async def test_kie_provider_generates_and_downloads_tracks(tmp_path, monkeypatch
                         "status": "SUCCESS",
                         "response": {
                             "sunoData": [
-                                {"title": "夜/曲", "audioUrl": "https://audio.test/one"},
-                                {"title": "夜/曲", "audioUrl": "https://audio.test/two"},
+                                {
+                                    "title": "夜/曲",
+                                    "audioUrl": "https://audio.test/one",
+                                    "imageUrl": "https://image.test/one.jpg",
+                                    "duration": 123.5,
+                                    "tags": "cinematic piano",
+                                },
+                                {
+                                    "title": "夜/曲",
+                                    "audioUrl": "https://audio.test/two",
+                                    "imageUrl": "https://image.test/two.png",
+                                },
                             ]
                         },
                     },
@@ -39,6 +49,9 @@ async def test_kie_provider_generates_and_downloads_tracks(tmp_path, monkeypatch
             )
         if request.url.host == "audio.test":
             return httpx.Response(200, content=b"mp3 data")
+        if request.url.host == "image.test":
+            content_type = "image/png" if request.url.path.endswith(".png") else "image/jpeg"
+            return httpx.Response(200, content=b"cover data", headers={"content-type": content_type})
         return httpx.Response(404)
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
@@ -57,7 +70,11 @@ async def test_kie_provider_generates_and_downloads_tracks(tmp_path, monkeypatch
     )
 
     assert [track.local_path.name for track in tracks] == ["夜-曲.mp3", "夜-曲-2.mp3"]
+    assert [track.cover_path.name for track in tracks] == ["夜-曲.jpg", "夜-曲-2.png"]
     assert all(track.local_path.read_bytes() == b"mp3 data" for track in tracks)
+    assert all(track.cover_path.read_bytes() == b"cover data" for track in tracks)
+    assert tracks[0].duration_seconds == 123.5
+    assert tracks[0].style == "cinematic piano"
     submit_payload = json.loads(requests[0].content)
     assert submit_payload["customMode"] is True
     assert submit_payload["instrumental"] is True

@@ -32,6 +32,15 @@ class UserProfile(BaseModel):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class PortfolioTrack(BaseModel):
+    title: str
+    audio_url: str
+    download_url: str
+    cover_url: str | None = None
+    duration_seconds: float | None = Field(default=None, ge=0)
+    style: str = ""
+
+
 class PortfolioItem(BaseModel):
     project_id: str
     title: str
@@ -41,7 +50,7 @@ class PortfolioItem(BaseModel):
     progress: int = Field(ge=0, le=100)
     current_stage: str
     latest_run_id: str | None = None
-    audio_urls: list[str] = Field(default_factory=list)
+    tracks: list[PortfolioTrack] = Field(default_factory=list)
     updated_at: datetime
 
 

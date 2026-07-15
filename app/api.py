@@ -22,7 +22,7 @@ from models.chat import (
     ChatSession,
     ChatSessionCreate,
 )
-from models.memory import MemoryContext, PortfolioItem
+from models.memory import MemoryContext, PortfolioItem, PortfolioTrack
 from models.project import Asset, Project, ProjectCreate, RunResult
 from providers.base import GeneratedTrack
 from tools.audio import ToolExecutionError, summarize_generated_audio
@@ -88,19 +88,29 @@ def generation_options(state: dict, project: Project) -> dict[str, object]:
     }
 
 
-def generated_track_payload(track: GeneratedTrack, works_root: Path) -> dict[str, str]:
+def generated_track_payload(track: GeneratedTrack, works_root: Path) -> dict[str, object]:
     path = track.local_path
     try:
         relative_path = path.resolve().relative_to(works_root.resolve())
     except ValueError:
         relative_path = Path(path.name)
     url_path = "/works/" + "/".join(relative_path.parts)
+    cover_url = (
+        relative_works_url(track.cover_path, works_root)
+        if track.cover_path is not None
+        else None
+    )
     return {
         "title": track.title,
         "source_url": track.source_url,
         "local_path": str(path),
         "audio_url": url_path,
         "download_url": url_path,
+        "cover_source_url": track.cover_source_url,
+        "cover_path": str(track.cover_path) if track.cover_path else None,
+        "cover_url": cover_url,
+        "style": track.style,
+        "duration_seconds": track.duration_seconds,
     }
 
 
@@ -192,7 +202,47 @@ def create_app(
             raise HTTPException(status_code=404, detail="Session not found") from exc
 
     def memory_context() -> MemoryContext:
-        return memories.context(project_store.list_projects())
+        context = memories.context(project_store.list_projects())
+        context.previous_works = [
+            build_portfolio_item(project)
+            for project in project_store.list_projects()[:20]
+        ]
+        return context
+
+    def build_portfolio_item(project: Project) -> PortfolioItem:
+        item = memories.portfolio_item(project)
+        if not project.latest_run_id:
+            return item
+        try:
+            run = project_store.get_run(project.id, project.latest_run_id)
+        except ProjectNotFoundError:
+            return item
+        tracks = run.state.get("generated_tracks") or []
+        analyses = run.state.get("generated_audio_analysis") or []
+        brief = run.state.get("creative_brief") or {}
+        fallback_style = value_from(brief, "genre", "") or value_from(
+            brief,
+            "production_style",
+            "",
+        )
+        for index, track in enumerate(tracks):
+            if not isinstance(track, dict) or not track.get("audio_url"):
+                continue
+            inspection = {}
+            if index < len(analyses) and isinstance(analyses[index], dict):
+                inspection = analyses[index].get("inspection") or {}
+            duration = inspection.get("duration_seconds") or track.get("duration_seconds")
+            item.tracks.append(
+                PortfolioTrack(
+                    title=str(track.get("title") or project.title),
+                    audio_url=str(track["audio_url"]),
+                    download_url=str(track.get("download_url") or track["audio_url"]),
+                    cover_url=track.get("cover_url"),
+                    duration_seconds=duration,
+                    style=str(track.get("style") or fallback_style or ""),
+                )
+            )
+        return item
 
     def get_workflow_runner() -> WorkflowRunner:
         nonlocal runner
