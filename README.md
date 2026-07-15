@@ -89,6 +89,17 @@ npm run dev
 项目元数据、上传音频和运行结果分别保存在 `data/projects/<project-id>/` 下的 `project.json`、`assets/` 和 `runs/` 中。
 运行日志默认写入 `_logs/`，包括 API 工作流阶段、Agent 结构化输出、KIE/Suno 提交和轮询状态，可通过上面的 `LOG_*` 环境变量调整。
 
+## 工具调用
+
+`tools/` 目录提供可被 API、LangGraph 节点或 Agent wrapper 调用的确定性工具：
+
+- `inspect_audio`：调用 `ffprobe` 读取用户上传音频的时长、编码、采样率、声道、码率和文件大小。
+- `trim_audio_preview`：调用 `ffmpeg` 从上传音频生成短预览片段并做基础响度规范化。
+- `render_prompt_demo_audio`：根据提示词生成一个轻量 demo 音频，适合作为中间参考产物。
+- `render_waveform` / `summarize_generated_audio`：对 Suno/KIE 生成的音频做元数据分析和波形图可视化。
+
+这些工具都使用参数列表调用命令行程序，不拼接 shell 字符串；命令失败、缺少工具或超时会抛出清晰错误。使用前需在本机安装对应命令行工具，例如 `ffmpeg` 和 `ffprobe`。
+
 ## 测试
 
 ```bash
@@ -111,6 +122,7 @@ npm run test:e2e
 - `models/`：结构化状态和输出模型。
 - `prompts/`：各角色的系统提示词。
 - `lib/`：提示词加载、音乐服务等工具。
+- `tools/`：音频分析、预览生成、波形渲染和 demo 音频渲染工具。
 - `providers/`：音乐生成供应商适配。
 - `frontend/`：本地 React 创作工作台。
 - `docs/`：架构与设计说明。
