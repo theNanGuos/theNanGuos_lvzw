@@ -87,7 +87,8 @@ def test_project_lifecycle_is_persisted_locally(tmp_path):
     assert run_response.status_code == 200
     run = run_response.json()
     assert run["state"]["final_prompt"] == "恢弘钢琴协奏曲，无人声。"
-    assert run["state"]["generated_tracks"][0]["audio_url"].endswith("/generated.mp3")
+    assert run["state"]["generated_tracks"][0]["audio_url"] == "/works/generated.mp3"
+    assert generator.inputs[0]["output_dir"] == tmp_path / "works"
     assert generator.inputs[0]["custom_mode"] is True
     assert generator.inputs[0]["instrumental"] is True
     assert runner.inputs[0]["preset"] == "classical_instrumental"

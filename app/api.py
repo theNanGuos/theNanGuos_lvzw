@@ -175,7 +175,7 @@ def create_app(
                     )
                     tracks = music_generator(
                         final_prompt,
-                        works_directory / project_id,
+                        works_directory,
                         instrumental=bool(options["instrumental"]),
                         style=str(options["style"] or ""),
                         title=str(options["title"] or project.title),
