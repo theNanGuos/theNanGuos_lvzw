@@ -3,9 +3,11 @@ import {
   AudioLines,
   ChevronRight,
   CircleStop,
+  Download,
   FileAudio,
   FolderOpen,
   GitBranch,
+  Headphones,
   LoaderCircle,
   Music2,
   Play,
@@ -14,8 +16,8 @@ import {
   Sparkles,
   Upload,
 } from 'lucide-react'
-import { createProject, runProject, uploadAsset } from './api'
-import type { Preset, RunResult } from './api'
+import { createProject, mediaUrl, runProject, uploadAsset } from './api'
+import type { GeneratedTrack, Preset, RunResult } from './api'
 import { WorkflowCanvas } from './components/WorkflowCanvas'
 import './App.css'
 
@@ -26,8 +28,8 @@ const statusCopy: Record<RunStatus, string> = {
   idle: '准备就绪',
   creating: '创建项目',
   uploading: '上传参考音频',
-  running: '乐团创作中',
-  completed: '创作完成',
+  running: '创作与生成中',
+  completed: '音乐生成完成',
   failed: '执行失败',
 }
 
@@ -44,6 +46,10 @@ function App() {
   const busy = ['creating', 'uploading', 'running'].includes(status)
   const finalPrompt = useMemo(
     () => (result?.state.final_prompt as string | undefined) ?? '',
+    [result],
+  )
+  const generatedTracks = useMemo(
+    () => (result?.state.generated_tracks as GeneratedTrack[] | undefined) ?? [],
     [result],
   )
 
@@ -187,11 +193,32 @@ function App() {
               <div className="result-area">
                 {finalPrompt ? (
                   <>
-                    <div className="result-title"><Sparkles size={17} /> 最终音乐提示词</div>
-                    <p>{finalPrompt}</p>
+                    <div className="result-title"><Headphones size={17} /> 生成音乐</div>
+                    {generatedTracks.length > 0 ? (
+                      <div className="track-list">
+                        {generatedTracks.map((track, index) => (
+                          <article className="track-item" key={`${track.audio_url}-${index}`}>
+                            <div className="track-heading">
+                              <strong>{track.title || `生成音乐 ${index + 1}`}</strong>
+                              <a className="download-link" href={mediaUrl(track.download_url)} download>
+                                <Download size={15} /> 下载
+                              </a>
+                            </div>
+                            <audio controls preload="metadata" src={mediaUrl(track.audio_url)} />
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <p>音乐生成完成后会在这里显示播放器。</p>
+                    )}
+                    <details className="prompt-details">
+                      <summary><Sparkles size={15} /> 最终音乐提示词</summary>
+                      <p>{finalPrompt}</p>
+                    </details>
                     <div className="result-meta">
                       <span>{String(result?.state.workflow ?? preset)}</span>
                       <span>{finalPrompt.length} 字符</span>
+                      <span>{generatedTracks.length} 首音乐</span>
                     </div>
                   </>
                 ) : error ? (
@@ -200,7 +227,7 @@ function App() {
                   <div className="empty-result">
                     <span className="empty-icon"><Sparkles size={22} /></span>
                     <strong>等待你的音乐构想</strong>
-                    <span>Agent 的执行状态与最终提示词将在这里出现</span>
+                    <span>生成完成后会在这里播放和下载音乐</span>
                   </div>
                 )}
               </div>

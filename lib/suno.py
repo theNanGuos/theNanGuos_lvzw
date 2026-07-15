@@ -14,6 +14,7 @@ async def generate_async(
     instrumental: bool = False,
     style: str | None = None,
     title: str | None = None,
+    custom_mode: bool | None = None,
 ) -> list[GeneratedTrack]:
     load_dotenv()
     provider = KieSunoProvider()
@@ -24,6 +25,7 @@ async def generate_async(
             instrumental=instrumental,
             style=style,
             title=title,
+            custom_mode=custom_mode,
         )
     finally:
         await provider.aclose()
@@ -36,6 +38,7 @@ def generate(
     instrumental: bool = False,
     style: str | None = None,
     title: str | None = None,
+    custom_mode: bool | None = None,
 ) -> list[GeneratedTrack]:
     return asyncio.run(
         generate_async(
@@ -44,5 +47,6 @@ def generate(
             instrumental=instrumental,
             style=style,
             title=title,
+            custom_mode=custom_mode,
         )
     )

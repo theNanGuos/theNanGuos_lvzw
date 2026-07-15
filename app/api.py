@@ -4,12 +4,14 @@ from typing import Protocol
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from agents.init import create_llm
 from app.graph import build_graph
 from app.storage import LocalProjectStore, ProjectNotFoundError
 from lib.logging_config import get_logger, log_context, setup_logging
 from models.project import Asset, Project, ProjectCreate, RunResult
+from providers.base import GeneratedTrack
 
 MAX_UPLOAD_SIZE = 20 * 1024 * 1024
 ALLOWED_AUDIO_SUFFIXES = {".mp3", ".wav", ".flac", ".m4a", ".ogg"}
@@ -20,9 +22,61 @@ class WorkflowRunner(Protocol):
     def invoke(self, state: dict) -> dict: ...
 
 
+class MusicGenerator(Protocol):
+    def __call__(
+        self,
+        prompt: str,
+        output_dir: Path | str,
+        *,
+        instrumental: bool = False,
+        style: str | None = None,
+        title: str | None = None,
+        custom_mode: bool | None = None,
+    ) -> list[GeneratedTrack]: ...
+
+
+def value_from(data: object, field: str, default: object = None) -> object:
+    if isinstance(data, dict):
+        return data.get(field, default)
+    return getattr(data, field, default)
+
+
+def generation_options(state: dict, project: Project) -> dict[str, object]:
+    brief = state.get("creative_brief")
+    style_parts = [
+        value_from(brief, "genre", ""),
+        value_from(brief, "production_style", ""),
+    ]
+    style_parts.extend(value_from(brief, "mood", []) or [])
+    return {
+        "instrumental": state.get("workflow") == "classical_instrumental",
+        "style": ", ".join(str(part) for part in style_parts if part),
+        "title": str(value_from(brief, "title", project.title) or project.title),
+        "custom_mode": True,
+    }
+
+
+def generated_track_payload(track: GeneratedTrack, works_root: Path) -> dict[str, str]:
+    path = track.local_path
+    try:
+        relative_path = path.resolve().relative_to(works_root.resolve())
+    except ValueError:
+        relative_path = Path(path.name)
+    url_path = "/works/" + "/".join(relative_path.parts)
+    return {
+        "title": track.title,
+        "source_url": track.source_url,
+        "local_path": str(path),
+        "audio_url": url_path,
+        "download_url": url_path,
+    }
+
+
 def create_app(
     store: LocalProjectStore | None = None,
     runner_factory: Callable[[], WorkflowRunner] | None = None,
+    music_generator: MusicGenerator | None = None,
+    works_root: Path | str = "works",
 ) -> FastAPI:
     setup_logging("api")
     app = FastAPI(title="theNanGuos", version="0.1.0")
@@ -33,7 +87,12 @@ def create_app(
         allow_headers=["*"],
     )
     project_store = store or LocalProjectStore()
+    works_directory = Path(works_root)
+    works_directory.mkdir(parents=True, exist_ok=True)
+    app.mount("/works", StaticFiles(directory=works_directory), name="works")
     make_runner = runner_factory or (lambda: build_graph(create_llm()))
+    if music_generator is None:
+        from lib.suno import generate as music_generator
     runner: WorkflowRunner | None = None
 
     def get_project(project_id: str) -> Project:
@@ -104,9 +163,31 @@ def create_app(
                         "artifact_dir": str(project_store.artifact_dir(project_id)),
                     }
                 )
+                final_prompt = result.get("final_prompt")
+                if not isinstance(final_prompt, str) or not final_prompt:
+                    raise RuntimeError("Workflow completed without final_prompt")
+                with log_context(project_id=project_id, stage="music_generation"):
+                    options = generation_options(result, project)
+                    logger.info(
+                        "music_generation_requested instrumental=%s custom_mode=%s",
+                        options["instrumental"],
+                        options["custom_mode"],
+                    )
+                    tracks = music_generator(
+                        final_prompt,
+                        works_directory / project_id,
+                        instrumental=bool(options["instrumental"]),
+                        style=str(options["style"] or ""),
+                        title=str(options["title"] or project.title),
+                        custom_mode=bool(options["custom_mode"]),
+                    )
+                result["generated_tracks"] = [
+                    generated_track_payload(track, works_directory)
+                    for track in tracks
+                ]
                 run = project_store.save_run(project_id, result)
                 with log_context(project_id=project_id, run_id=run.id, stage="workflow"):
-                    logger.info("workflow_completed")
+                    logger.info("workflow_completed tracks=%s", len(result["generated_tracks"]))
                 return run
             except Exception as exc:
                 project.status = "failed"

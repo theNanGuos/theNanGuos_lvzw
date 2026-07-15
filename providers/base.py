@@ -19,4 +19,5 @@ class MusicGenerationProvider(Protocol):
         instrumental: bool = False,
         style: str | None = None,
         title: str | None = None,
+        custom_mode: bool | None = None,
     ) -> list[GeneratedTrack]: ...

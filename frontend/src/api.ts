@@ -13,6 +13,14 @@ export interface RunResult {
   state: Record<string, unknown>
 }
 
+export interface GeneratedTrack {
+  title: string
+  source_url: string
+  local_path: string
+  audio_url: string
+  download_url: string
+}
+
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8000'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -44,4 +52,8 @@ export function uploadAsset(projectId: string, file: File) {
 
 export function runProject(projectId: string) {
   return request<RunResult>(`/api/projects/${projectId}/runs`, { method: 'POST' })
+}
+
+export function mediaUrl(path: string) {
+  return path.startsWith('http') ? path : `${API_BASE}${path}`
 }

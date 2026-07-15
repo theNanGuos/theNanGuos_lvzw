@@ -75,6 +75,16 @@ button { letter-spacing: 0; }
 .result-area { border-top: 1px solid var(--line); padding: 18px 4px 0; min-height: 0; }
 .result-title { display: flex; align-items: center; gap: 8px; color: var(--green); font-size: 11px; font-weight: 800; }
 .result-area > p { color: #303a35; font-size: 14px; line-height: 1.8; margin: 16px 0; max-width: 760px; }
+.track-list { display: grid; gap: 12px; margin-top: 14px; }
+.track-item { border: 1px solid var(--line); border-radius: 6px; padding: 12px; background: #fbfcfb; display: grid; gap: 10px; max-width: 760px; }
+.track-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.track-heading strong { min-width: 0; overflow-wrap: anywhere; color: #2f3934; font-size: 12px; }
+.track-item audio { width: 100%; height: 36px; }
+.download-link { min-height: 30px; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid #bdd7cd; border-radius: 5px; color: var(--green); background: #f4faf7; text-decoration: none; font-size: 11px; font-weight: 700; }
+.download-link:hover { background: #eaf5ef; }
+.prompt-details { margin: 14px 0; max-width: 760px; border-top: 1px solid var(--line); padding-top: 12px; }
+.prompt-details summary { cursor: pointer; display: flex; align-items: center; gap: 7px; color: #56645d; font-size: 11px; font-weight: 800; }
+.prompt-details p { color: #303a35; font-size: 12px; line-height: 1.7; margin: 10px 0 0; }
 .result-meta { display: flex; gap: 8px; }
 .result-meta span { padding: 4px 7px; border: 1px solid var(--line); border-radius: 4px; color: #78827d; font: 9px/1 ui-monospace, monospace; }
 .empty-result, .error-message { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; color: #87928c; }
@@ -120,6 +130,8 @@ button { letter-spacing: 0; }
   .brief-panel, .output-panel { padding: 16px; }
   .preset-control { grid-template-columns: 1fr; }
   .output-panel { grid-template-rows: auto 210px 300px; min-height: 550px; }
+  .track-heading { align-items: stretch; flex-direction: column; }
+  .download-link { justify-content: center; }
   .workflow-toolbar { align-items: stretch; flex-direction: column; height: auto; }
   .workflow-panel { height: calc(100vh - 92px); grid-template-rows: auto minmax(0, 1fr); }
   .compact-control { width: 100%; grid-template-columns: 1fr; }

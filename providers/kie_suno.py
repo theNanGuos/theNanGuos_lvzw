@@ -64,6 +64,7 @@ class KieSunoProvider:
         instrumental: bool = False,
         style: str | None = None,
         title: str | None = None,
+        custom_mode: bool | None = None,
     ) -> list[GeneratedTrack]:
         logger.info(
             "music_generation_started instrumental=%s prompt_length=%s output_dir=%s",
@@ -76,6 +77,7 @@ class KieSunoProvider:
             instrumental=instrumental,
             style=style,
             title=title,
+            custom_mode=custom_mode,
         )
         with log_context(run_id=task_id, stage="music_generation"):
             task = await self.wait(task_id)
