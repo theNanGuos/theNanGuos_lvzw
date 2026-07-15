@@ -2,6 +2,8 @@ from typing import Literal, TypedDict
 
 from pydantic import BaseModel, Field
 
+from models.memory import MemoryContext
+
 WorkflowName = Literal[
     "pop_vocal",
     "classical_instrumental",
@@ -146,6 +148,9 @@ class AudioReference(BaseModel):
 
 
 class State(TypedDict, total=False):
+    session_id: str
+    project_id: str
+    memory_context: MemoryContext
     user_request: str
     preset: Literal[
         "auto",

@@ -6,6 +6,10 @@ def read(path: Path) -> str:
     prompt = path.read_text(encoding="utf-8")
     return prompt
 
+
+def chat() -> str:
+    return read(PROJECT_DIR / "prompts" / "chat.md")
+
 def conductor() -> str:
     path = PROJECT_DIR / "prompts" / "conductor.md"
     return read(path)

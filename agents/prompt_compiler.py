@@ -15,6 +15,7 @@ class PromptCompilerAgent(Agent):
             output_schema=PromptOutput,
             input_fields=(
                 "user_request",
+                "memory_context",
                 "creative_brief",
                 "lyrics",
                 "melody_plan",

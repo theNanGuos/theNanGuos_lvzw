@@ -1,15 +1,28 @@
 from collections.abc import Callable
 from pathlib import Path
+from threading import Lock, Thread
 from typing import Protocol
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from agents.chat import ChatAgent
 from agents.init import create_llm
 from app.graph import build_graph
+from app.memory import LocalMemoryStore
+from app.session_store import LocalSessionStore, SessionNotFoundError
 from app.storage import LocalProjectStore, ProjectNotFoundError
 from lib.logging_config import get_logger, log_context, setup_logging
+from models.chat import (
+    ChatDecision,
+    ChatMessage,
+    ChatRequest,
+    ChatResponse,
+    ChatSession,
+    ChatSessionCreate,
+)
+from models.memory import MemoryContext, PortfolioItem
 from models.project import Asset, Project, ProjectCreate, RunResult
 from providers.base import GeneratedTrack
 from tools.audio import ToolExecutionError, summarize_generated_audio
@@ -22,6 +35,10 @@ logger = get_logger(__name__)
 
 class WorkflowRunner(Protocol):
     def invoke(self, state: dict) -> dict: ...
+
+
+class ChatRunner(Protocol):
+    def __call__(self, state: dict) -> dict: ...
 
 
 class MusicGenerator(Protocol):
@@ -127,7 +144,10 @@ def analyze_generated_tracks(
 
 def create_app(
     store: LocalProjectStore | None = None,
+    session_store: LocalSessionStore | None = None,
+    memory_store: LocalMemoryStore | None = None,
     runner_factory: Callable[[], WorkflowRunner] | None = None,
+    chat_agent_factory: Callable[[], ChatRunner] | None = None,
     music_generator: MusicGenerator | None = None,
     demo_renderer: DemoRenderer = render_prompt_demo_audio,
     audio_analyzer: AudioAnalyzer = summarize_generated_audio,
@@ -142,19 +162,193 @@ def create_app(
         allow_headers=["*"],
     )
     project_store = store or LocalProjectStore()
+    sessions = session_store or LocalSessionStore()
+    memories = memory_store or LocalMemoryStore()
+    interrupted_runs = project_store.recover_interrupted_runs()
+    if interrupted_runs:
+        logger.warning("interrupted_runs_recovered count=%s", interrupted_runs)
     works_directory = Path(works_root)
     works_directory.mkdir(parents=True, exist_ok=True)
     app.mount("/works", StaticFiles(directory=works_directory), name="works")
     make_runner = runner_factory or (lambda: build_graph(create_llm()))
+    make_chat_agent = chat_agent_factory or (lambda: ChatAgent(create_llm()))
     if music_generator is None:
         from lib.suno import generate as music_generator
     runner: WorkflowRunner | None = None
+    chat_agent: ChatRunner | None = None
+    agent_lock = Lock()
+    workflow_lock = Lock()
 
     def get_project(project_id: str) -> Project:
         try:
             return project_store.get_project(project_id)
         except ProjectNotFoundError as exc:
             raise HTTPException(status_code=404, detail="Project not found") from exc
+
+    def get_session(session_id: str) -> ChatSession:
+        try:
+            return sessions.get_session(session_id)
+        except SessionNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="Session not found") from exc
+
+    def memory_context() -> MemoryContext:
+        return memories.context(project_store.list_projects())
+
+    def get_workflow_runner() -> WorkflowRunner:
+        nonlocal runner
+        with agent_lock:
+            runner = runner or make_runner()
+        return runner
+
+    def get_chat_runner() -> ChatRunner:
+        nonlocal chat_agent
+        with agent_lock:
+            chat_agent = chat_agent or make_chat_agent()
+        return chat_agent
+
+    def update_progress(
+        project_id: str,
+        run: RunResult | None,
+        progress: int,
+        stage: str,
+    ) -> None:
+        if run is not None:
+            project_store.update_run(
+                run,
+                progress=progress,
+                current_stage=stage,
+                status="running",
+            )
+            return
+        project = project_store.get_project(project_id)
+        project.status = "running"
+        project.progress = progress
+        project.current_stage = stage
+        project.error = None
+        project_store.save_project(project)
+
+    def execute_workflow(project_id: str, run: RunResult | None = None) -> RunResult:
+        project = project_store.get_project(project_id)
+        with workflow_lock, log_context(project_id=project_id, stage="workflow"):
+            logger.info("workflow_started preset=%s run_id=%s", project.preset, run.id if run else "sync")
+            try:
+                update_progress(project_id, run, 10, "workflow")
+                result = get_workflow_runner().invoke(
+                    {
+                        "project_id": project_id,
+                        "user_request": project.user_request,
+                        "preset": project.preset,
+                        "memory_context": memory_context(),
+                        "artifact_dir": str(project_store.artifact_dir(project_id)),
+                        "reference_audio_paths": [
+                            str(project_store.asset_file_path(project_id, asset))
+                            for asset in project.assets
+                        ],
+                    }
+                )
+                final_prompt = result.get("final_prompt")
+                if not isinstance(final_prompt, str) or not final_prompt:
+                    raise RuntimeError("Workflow completed without final_prompt")
+
+                update_progress(project_id, run, 75, "demo_audio")
+                with log_context(project_id=project_id, stage="demo_audio"):
+                    try:
+                        result["demo_audio"] = build_prompt_demo_audio(
+                            final_prompt,
+                            project_id,
+                            works_directory,
+                            demo_renderer,
+                        )
+                        logger.info("demo_audio_created")
+                    except ToolExecutionError as exc:
+                        result["demo_audio_error"] = str(exc)
+                        logger.warning("demo_audio_failed reason=%s", exc)
+
+                update_progress(project_id, run, 82, "music_generation")
+                with log_context(project_id=project_id, stage="music_generation"):
+                    options = generation_options(result, project)
+                    logger.info(
+                        "music_generation_requested instrumental=%s custom_mode=%s",
+                        options["instrumental"],
+                        options["custom_mode"],
+                    )
+                    tracks = music_generator(
+                        final_prompt,
+                        works_directory,
+                        instrumental=bool(options["instrumental"]),
+                        style=str(options["style"] or ""),
+                        title=str(options["title"] or project.title),
+                        custom_mode=bool(options["custom_mode"]),
+                    )
+                result["generated_tracks"] = [
+                    generated_track_payload(track, works_directory)
+                    for track in tracks
+                ]
+
+                update_progress(project_id, run, 95, "audio_analysis")
+                with log_context(project_id=project_id, stage="generated_audio_analysis"):
+                    try:
+                        result["generated_audio_analysis"] = analyze_generated_tracks(
+                            tracks,
+                            works_directory,
+                            audio_analyzer,
+                        )
+                        logger.info(
+                            "generated_audio_analysis_completed tracks=%s",
+                            len(result["generated_audio_analysis"]),
+                        )
+                    except ToolExecutionError as exc:
+                        result["generated_audio_analysis_error"] = str(exc)
+                        logger.warning("generated_audio_analysis_failed reason=%s", exc)
+
+                if run is None:
+                    completed = project_store.save_run(project_id, result)
+                else:
+                    completed = project_store.update_run(
+                        run,
+                        progress=100,
+                        current_stage="completed",
+                        status="completed",
+                        state=result,
+                    )
+                memories.record_workflow(str(result.get("workflow") or project.preset))
+                with log_context(project_id=project_id, run_id=completed.id, stage="workflow"):
+                    logger.info("workflow_completed tracks=%s", len(result["generated_tracks"]))
+                return completed
+            except Exception as exc:
+                if run is not None:
+                    project_store.update_run(
+                        run,
+                        progress=run.progress,
+                        current_stage="failed",
+                        status="failed",
+                        error=str(exc),
+                    )
+                else:
+                    failed_project = project_store.get_project(project_id)
+                    failed_project.status = "failed"
+                    failed_project.current_stage = "failed"
+                    failed_project.error = str(exc)
+                    project_store.save_project(failed_project)
+                logger.exception("workflow_failed")
+                raise
+
+    def execute_workflow_in_background(project_id: str, run: RunResult) -> None:
+        try:
+            execute_workflow(project_id, run)
+        except Exception:
+            # execute_workflow persists and logs the actionable error.
+            return
+
+    def start_background_run(project_id: str) -> RunResult:
+        run = project_store.create_run(project_id)
+        Thread(
+            target=execute_workflow_in_background,
+            args=(project_id, run),
+            daemon=True,
+            name=f"music-run-{run.id[:8]}",
+        ).start()
+        return run
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
@@ -163,6 +357,10 @@ def create_app(
     @app.get("/api/projects", response_model=list[Project])
     def list_projects() -> list[Project]:
         return project_store.list_projects()
+
+    @app.get("/api/portfolio", response_model=list[PortfolioItem])
+    def list_portfolio() -> list[PortfolioItem]:
+        return memory_context().previous_works
 
     @app.post("/api/projects", response_model=Project, status_code=status.HTTP_201_CREATED)
     def create_project(payload: ProjectCreate) -> Project:
@@ -203,83 +401,18 @@ def create_app(
 
     @app.post("/api/projects/{project_id}/runs", response_model=RunResult)
     def run_project(project_id: str) -> RunResult:
-        nonlocal runner
-        project = get_project(project_id)
-        project.status = "running"
-        project_store.save_project(project)
-        with log_context(project_id=project_id, stage="workflow"):
-            logger.info("workflow_started preset=%s", project.preset)
-            try:
-                runner = runner or make_runner()
-                result = runner.invoke(
-                    {
-                        "user_request": project.user_request,
-                        "preset": project.preset,
-                        "artifact_dir": str(project_store.artifact_dir(project_id)),
-                        "reference_audio_paths": [
-                            str(project_store.asset_file_path(project_id, asset))
-                            for asset in project.assets
-                        ],
-                    }
-                )
-                final_prompt = result.get("final_prompt")
-                if not isinstance(final_prompt, str) or not final_prompt:
-                    raise RuntimeError("Workflow completed without final_prompt")
-                with log_context(project_id=project_id, stage="demo_audio"):
-                    try:
-                        result["demo_audio"] = build_prompt_demo_audio(
-                            final_prompt,
-                            project_id,
-                            works_directory,
-                            demo_renderer,
-                        )
-                        logger.info("demo_audio_created")
-                    except ToolExecutionError as exc:
-                        result["demo_audio_error"] = str(exc)
-                        logger.warning("demo_audio_failed reason=%s", exc)
-                with log_context(project_id=project_id, stage="music_generation"):
-                    options = generation_options(result, project)
-                    logger.info(
-                        "music_generation_requested instrumental=%s custom_mode=%s",
-                        options["instrumental"],
-                        options["custom_mode"],
-                    )
-                    tracks = music_generator(
-                        final_prompt,
-                        works_directory,
-                        instrumental=bool(options["instrumental"]),
-                        style=str(options["style"] or ""),
-                        title=str(options["title"] or project.title),
-                        custom_mode=bool(options["custom_mode"]),
-                    )
-                result["generated_tracks"] = [
-                    generated_track_payload(track, works_directory)
-                    for track in tracks
-                ]
-                with log_context(project_id=project_id, stage="generated_audio_analysis"):
-                    try:
-                        result["generated_audio_analysis"] = analyze_generated_tracks(
-                            tracks,
-                            works_directory,
-                            audio_analyzer,
-                        )
-                        logger.info(
-                            "generated_audio_analysis_completed tracks=%s",
-                            len(result["generated_audio_analysis"]),
-                        )
-                    except ToolExecutionError as exc:
-                        result["generated_audio_analysis_error"] = str(exc)
-                        logger.warning("generated_audio_analysis_failed reason=%s", exc)
-                run = project_store.save_run(project_id, result)
-                with log_context(project_id=project_id, run_id=run.id, stage="workflow"):
-                    logger.info("workflow_completed tracks=%s", len(result["generated_tracks"]))
-                return run
-            except Exception as exc:
-                project.status = "failed"
-                project.error = str(exc)
-                project_store.save_project(project)
-                logger.exception("workflow_failed")
-                raise HTTPException(status_code=500, detail=f"Workflow failed: {exc}") from exc
+        get_project(project_id)
+        try:
+            return execute_workflow(project_id)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Workflow failed: {exc}") from exc
+
+    @app.post("/api/projects/{project_id}/runs/async", response_model=RunResult)
+    def run_project_async(project_id: str) -> RunResult:
+        get_project(project_id)
+        run = start_background_run(project_id)
+        logger.info("workflow_queued project_id=%s run_id=%s", project_id, run.id)
+        return run
 
     @app.get(
         "/api/projects/{project_id}/runs/{run_id}",
@@ -291,6 +424,106 @@ def create_app(
             return project_store.get_run(project_id, run_id)
         except ProjectNotFoundError as exc:
             raise HTTPException(status_code=404, detail="Run not found") from exc
+
+    @app.get("/api/sessions", response_model=list[ChatSession])
+    def list_sessions() -> list[ChatSession]:
+        return sessions.list_sessions()
+
+    @app.post("/api/sessions", response_model=ChatSession, status_code=status.HTTP_201_CREATED)
+    def create_session(payload: ChatSessionCreate) -> ChatSession:
+        session = sessions.create_session(payload)
+        logger.info("chat_session_created session_id=%s", session.id)
+        return session
+
+    @app.get("/api/sessions/{session_id}", response_model=ChatSession)
+    def read_session(session_id: str) -> ChatSession:
+        return get_session(session_id)
+
+    @app.post("/api/sessions/{session_id}/messages", response_model=ChatResponse)
+    def send_message(session_id: str, payload: ChatRequest) -> ChatResponse:
+        session = get_session(session_id)
+        user_message = ChatMessage(role="user", content=payload.content)
+        session.messages.append(user_message)
+        if len(session.messages) > 20:
+            older_messages = session.messages[:-20]
+            session.summary = "\n".join(
+                f"{message.role}: {message.content}" for message in older_messages
+            )[-4000:]
+        sessions.save_session(session)
+
+        context = memory_context()
+        try:
+            raw_decision = get_chat_runner()(
+                {
+                    "latest_message": payload.content,
+                    "recent_messages": [
+                        message.model_dump(mode="json") for message in session.messages[-20:]
+                    ],
+                    "session_summary": session.summary,
+                    "active_project_id": session.active_project_id,
+                    "memory_context": context,
+                }
+            )
+            decision = ChatDecision.model_validate(raw_decision)
+        except Exception as exc:
+            logger.exception("chat_agent_failed session_id=%s", session_id)
+            raise HTTPException(status_code=500, detail=f"Chat Agent failed: {exc}") from exc
+
+        if decision.memory_observations:
+            memories.merge_observations(
+                decision.memory_observations,
+                session_id=session_id,
+            )
+            logger.info(
+                "memory_observations_merged session_id=%s count=%s",
+                session_id,
+                len(decision.memory_observations),
+            )
+
+        project_id: str | None = None
+        run_id: str | None = None
+        if decision.action in {"create_project", "run_workflow", "revise_project"}:
+            request_text = decision.user_request.strip() or payload.content
+            title = decision.project_title.strip() or request_text[:40]
+            if decision.action == "revise_project" and session.active_project_id:
+                project = get_project(session.active_project_id)
+                project.title = title
+                project.user_request = request_text
+                project.preset = decision.preset
+                project.status = "draft"
+                project.progress = 0
+                project.current_stage = "draft"
+                project_store.save_project(project)
+            else:
+                project = project_store.create_project(
+                    ProjectCreate(
+                        title=title,
+                        user_request=request_text,
+                        preset=decision.preset,
+                    )
+                )
+            project_id = project.id
+            session.active_project_id = project.id
+            if decision.action in {"run_workflow", "revise_project"}:
+                run_id = start_background_run(project.id).id
+
+        assistant_message = ChatMessage(role="assistant", content=decision.reply)
+        session.messages.append(assistant_message)
+        sessions.save_session(session)
+        logger.info(
+            "chat_message_completed session_id=%s action=%s project_id=%s run_id=%s",
+            session_id,
+            decision.action,
+            project_id,
+            run_id,
+        )
+        return ChatResponse(
+            session=session,
+            message=assistant_message,
+            action=decision.action,
+            project_id=project_id,
+            run_id=run_id,
+        )
 
     return app
 

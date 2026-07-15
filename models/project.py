@@ -32,6 +32,11 @@ class Project(BaseModel):
     user_request: str
     preset: ProjectPreset = "auto"
     status: ProjectStatus = "draft"
+    progress: int = Field(default=0, ge=0, le=100)
+    current_stage: str = "draft"
+    workflow: str | None = None
+    summary: str = ""
+    tags: list[str] = Field(default_factory=list)
     assets: list[Asset] = Field(default_factory=list)
     latest_run_id: str | None = None
     error: str | None = None
@@ -48,5 +53,10 @@ class ProjectCreate(BaseModel):
 class RunResult(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex)
     project_id: str
-    state: dict[str, Any]
+    state: dict[str, Any] = Field(default_factory=dict)
+    status: ProjectStatus = "completed"
+    progress: int = Field(default=100, ge=0, le=100)
+    current_stage: str = "completed"
+    error: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)

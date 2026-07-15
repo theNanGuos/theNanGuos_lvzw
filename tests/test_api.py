@@ -1,10 +1,14 @@
 import json
+import time
 
 from fastapi.testclient import TestClient
 
 from app.api import create_app
+from app.memory import LocalMemoryStore
+from app.session_store import LocalSessionStore
 from app.storage import LocalProjectStore
 from providers.base import GeneratedTrack
+from models.project import ProjectCreate
 from tools.audio import AudioInspection, GeneratedAudioSummary, ToolExecutionError
 from tools.demo_audio import DemoAudio
 
@@ -90,6 +94,8 @@ def make_client(tmp_path):
     generator = FakeMusicGenerator()
     app = create_app(
         store=store,
+        session_store=LocalSessionStore(tmp_path / "sessions"),
+        memory_store=LocalMemoryStore(tmp_path / "memory" / "user_profile.json"),
         runner_factory=lambda: runner,
         music_generator=generator,
         demo_renderer=fake_demo,
@@ -97,6 +103,30 @@ def make_client(tmp_path):
         works_root=tmp_path / "works",
     )
     return TestClient(app), store, runner, generator
+
+
+class FakeChatAgent:
+    def __init__(self):
+        self.inputs = []
+
+    def __call__(self, state):
+        self.inputs.append(state)
+        return {
+            "reply": "我记住你偏好纯音乐，现在开始生成雨夜氛围电子曲。",
+            "action": "run_workflow",
+            "preset": "electronic_instrumental",
+            "project_title": "雨夜电子",
+            "user_request": "生成一首雨夜氛围电子纯音乐",
+            "memory_observations": [
+                {
+                    "kind": "preference",
+                    "key": "vocal_preference",
+                    "value": "纯音乐",
+                    "confidence": 0.95,
+                    "evidence": "用户明确要求以后默认纯音乐",
+                }
+            ],
+        }
 
 
 def test_project_lifecycle_is_persisted_locally(tmp_path):
@@ -144,6 +174,8 @@ def test_audio_tool_failures_do_not_abort_music_generation(tmp_path):
     generator = FakeMusicGenerator()
     app = create_app(
         store=store,
+        session_store=LocalSessionStore(tmp_path / "sessions"),
+        memory_store=LocalMemoryStore(tmp_path / "memory" / "user_profile.json"),
         runner_factory=lambda: runner,
         music_generator=generator,
         demo_renderer=lambda *args, **kwargs: (_ for _ in ()).throw(
@@ -206,3 +238,79 @@ def test_rejects_unsupported_asset_type(tmp_path):
     )
 
     assert response.status_code == 400
+
+
+def test_chat_session_routes_workflow_and_persists_memory(tmp_path):
+    store = LocalProjectStore(tmp_path / "projects")
+    sessions = LocalSessionStore(tmp_path / "sessions")
+    memories = LocalMemoryStore(tmp_path / "memory" / "user_profile.json")
+    runner = FakeRunner()
+    chat_agent = FakeChatAgent()
+    app = create_app(
+        store=store,
+        session_store=sessions,
+        memory_store=memories,
+        runner_factory=lambda: runner,
+        chat_agent_factory=lambda: chat_agent,
+        music_generator=FakeMusicGenerator(),
+        demo_renderer=fake_demo,
+        audio_analyzer=fake_summary,
+        works_root=tmp_path / "works",
+    )
+    client = TestClient(app)
+    session = client.post("/api/sessions", json={"title": "偏好测试"}).json()
+
+    response = client.post(
+        f"/api/sessions/{session['id']}/messages",
+        json={"content": "以后默认做纯音乐，这次生成雨夜氛围电子曲"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["action"] == "run_workflow"
+    assert payload["project_id"]
+    assert payload["run_id"]
+    assert len(payload["session"]["messages"]) == 2
+    assert memories.load_profile().preferences[0].value == "纯音乐"
+
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline:
+        run = client.get(
+            f"/api/projects/{payload['project_id']}/runs/{payload['run_id']}"
+        ).json()
+        if run["status"] != "running":
+            break
+        time.sleep(0.02)
+
+    assert run["status"] == "completed"
+    assert run["progress"] == 100
+    assert runner.inputs[0]["memory_context"].preferences[0].value == "纯音乐"
+    portfolio = client.get("/api/portfolio").json()
+    assert portfolio[0]["project_id"] == payload["project_id"]
+    assert portfolio[0]["status"] == "completed"
+
+
+def test_app_startup_marks_orphaned_local_run_as_interrupted(tmp_path):
+    store = LocalProjectStore(tmp_path / "projects")
+    project = store.create_project(
+        ProjectCreate(title="未完成作品", user_request="生成一首测试音乐")
+    )
+    run = store.create_run(project.id)
+    store.update_run(run, progress=42, current_stage="music_generation")
+
+    create_app(
+        store=store,
+        session_store=LocalSessionStore(tmp_path / "sessions"),
+        memory_store=LocalMemoryStore(tmp_path / "memory" / "user_profile.json"),
+        runner_factory=lambda: FakeRunner(),
+        music_generator=FakeMusicGenerator(),
+        demo_renderer=fake_demo,
+        audio_analyzer=fake_summary,
+        works_root=tmp_path / "works",
+    )
+
+    recovered = store.get_run(project.id, run.id)
+    assert recovered.status == "failed"
+    assert recovered.progress == 42
+    assert recovered.current_stage == "interrupted"
+    assert store.get_project(project.id).status == "failed"
