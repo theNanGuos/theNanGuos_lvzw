@@ -5,6 +5,8 @@ from fastapi.testclient import TestClient
 from app.api import create_app
 from app.storage import LocalProjectStore
 from providers.base import GeneratedTrack
+from tools.audio import AudioInspection, GeneratedAudioSummary, ToolExecutionError
+from tools.demo_audio import DemoAudio
 
 
 class FakeRunner:
@@ -56,6 +58,32 @@ class FakeMusicGenerator:
         ]
 
 
+def fake_demo(prompt, output_path):
+    output_path.write_bytes(b"demo")
+    return DemoAudio(
+        prompt=prompt,
+        output_path=str(output_path),
+        duration_seconds=12,
+        tempo_bpm=96,
+        frequencies=[220, 330, 440],
+        size_bytes=4,
+    )
+
+
+def fake_summary(input_path, *, waveform_path=None):
+    waveform_path.write_bytes(b"png")
+    return GeneratedAudioSummary(
+        inspection=AudioInspection(
+            path=str(input_path),
+            duration_seconds=123.4,
+            codec_name="mp3",
+            sample_rate=44100,
+            size_bytes=8,
+        ),
+        waveform_path=str(waveform_path),
+    )
+
+
 def make_client(tmp_path):
     store = LocalProjectStore(tmp_path / "projects")
     runner = FakeRunner()
@@ -64,6 +92,8 @@ def make_client(tmp_path):
         store=store,
         runner_factory=lambda: runner,
         music_generator=generator,
+        demo_renderer=fake_demo,
+        audio_analyzer=fake_summary,
         works_root=tmp_path / "works",
     )
     return TestClient(app), store, runner, generator
@@ -87,7 +117,10 @@ def test_project_lifecycle_is_persisted_locally(tmp_path):
     assert run_response.status_code == 200
     run = run_response.json()
     assert run["state"]["final_prompt"] == "恢弘钢琴协奏曲，无人声。"
+    assert run["state"]["demo_audio"]["audio_url"].endswith("-demo.wav")
     assert run["state"]["generated_tracks"][0]["audio_url"] == "/works/generated.mp3"
+    assert run["state"]["generated_audio_analysis"][0]["waveform_url"] == "/works/generated-waveform.png"
+    assert run["state"]["generated_audio_analysis"][0]["inspection"]["duration_seconds"] == 123.4
     assert generator.inputs[0]["output_dir"] == tmp_path / "works"
     assert generator.inputs[0]["custom_mode"] is True
     assert generator.inputs[0]["instrumental"] is True
@@ -103,6 +136,37 @@ def test_project_lifecycle_is_persisted_locally(tmp_path):
     audio_response = client.get(run["state"]["generated_tracks"][0]["audio_url"])
     assert audio_response.status_code == 200
     assert audio_response.content == b"mp3 data"
+
+
+def test_audio_tool_failures_do_not_abort_music_generation(tmp_path):
+    store = LocalProjectStore(tmp_path / "projects")
+    runner = FakeRunner()
+    generator = FakeMusicGenerator()
+    app = create_app(
+        store=store,
+        runner_factory=lambda: runner,
+        music_generator=generator,
+        demo_renderer=lambda *args, **kwargs: (_ for _ in ()).throw(
+            ToolExecutionError("ffmpeg missing")
+        ),
+        audio_analyzer=lambda *args, **kwargs: (_ for _ in ()).throw(
+            ToolExecutionError("ffprobe missing")
+        ),
+        works_root=tmp_path / "works",
+    )
+    client = TestClient(app)
+    project = client.post(
+        "/api/projects",
+        json={"title": "工具失败", "user_request": "生成一首歌"},
+    ).json()
+
+    run_response = client.post(f"/api/projects/{project['id']}/runs")
+
+    assert run_response.status_code == 200
+    state = run_response.json()["state"]
+    assert state["generated_tracks"]
+    assert state["demo_audio_error"] == "ffmpeg missing"
+    assert state["generated_audio_analysis_error"] == "ffprobe missing"
 
 
 def test_audio_upload_is_saved_as_project_asset(tmp_path):

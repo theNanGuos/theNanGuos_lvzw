@@ -103,6 +103,7 @@ npm run dev
 `skills/` 目录提供按职能划分的 Agent 技能说明。Agent 初始化时会把对应 `SKILL.md` 加载进系统提示词，例如 Lyrics Agent 加载参考音频作词技能，Melody Agent 加载 demo 音频规划技能，Arrange Agent 加载音频分析编曲技能，Prompt Compiler 加载 Suno 生成交接技能。
 
 当 `LLM_STRUCTURED_OUTPUT_METHOD=function_calling` 或 `json_schema` 时，LLM 初始化会回到 `ChatOpenAI`，上传参考音频会先进入 Audio Reference Agent。该节点使用 `llm.bind_tools(...)` 让模型调用白名单工具，例如 `inspect_uploaded_audio`、`create_uploaded_audio_preview` 和 `render_uploaded_audio_waveform`；工具参数只允许使用上传资产索引，不允许模型传任意本地路径。
+Prompt Compiler 产出最终提示词后，API 会受控调用 `render_prompt_demo_audio` 生成中间 demo 音频。KIE/Suno 音乐下载完成后，API 会受控调用 `summarize_generated_audio` 和 `render_waveform` 生成音频元数据与波形图；这些后处理工具失败时会写入错误字段和日志，不阻断主音乐生成结果。
 
 ## 测试
 

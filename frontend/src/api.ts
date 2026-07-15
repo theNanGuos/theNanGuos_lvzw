@@ -21,6 +21,27 @@ export interface GeneratedTrack {
   download_url: string
 }
 
+export interface DemoAudio {
+  output_path: string
+  audio_url: string
+  duration_seconds: number
+  tempo_bpm: number
+  frequencies: number[]
+}
+
+export interface GeneratedAudioAnalysis {
+  track_title: string
+  waveform_url?: string
+  inspection: {
+    duration_seconds?: number
+    codec_name?: string
+    sample_rate?: number
+    channels?: number
+    bit_rate?: number
+    size_bytes?: number
+  }
+}
+
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8000'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

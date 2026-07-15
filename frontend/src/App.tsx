@@ -16,7 +16,7 @@ import {
   Upload,
 } from 'lucide-react'
 import { createProject, mediaUrl, runProject, uploadAsset } from './api'
-import type { GeneratedTrack, Preset, RunResult } from './api'
+import type { DemoAudio, GeneratedAudioAnalysis, GeneratedTrack, Preset, RunResult } from './api'
 import { WorkflowCanvas } from './components/WorkflowCanvas'
 import './App.css'
 
@@ -49,6 +49,14 @@ function App() {
   )
   const generatedTracks = useMemo(
     () => (result?.state.generated_tracks as GeneratedTrack[] | undefined) ?? [],
+    [result],
+  )
+  const demoAudio = useMemo(
+    () => result?.state.demo_audio as DemoAudio | undefined,
+    [result],
+  )
+  const audioAnalyses = useMemo(
+    () => (result?.state.generated_audio_analysis as GeneratedAudioAnalysis[] | undefined) ?? [],
     [result],
   )
 
@@ -193,6 +201,15 @@ function App() {
                 {finalPrompt ? (
                   <>
                     <div className="result-title"><Headphones size={17} /> 生成音乐</div>
+                    {demoAudio && (
+                      <article className="demo-audio">
+                        <div className="track-heading">
+                          <strong>中间 Demo 音频</strong>
+                          <span>{demoAudio.duration_seconds.toFixed(0)} 秒 · {demoAudio.tempo_bpm} BPM</span>
+                        </div>
+                        <audio controls preload="metadata" src={mediaUrl(demoAudio.audio_url)} />
+                      </article>
+                    )}
                     {generatedTracks.length > 0 ? (
                       <div className="track-list">
                         {generatedTracks.map((track, index) => (
@@ -204,6 +221,26 @@ function App() {
                               </a>
                             </div>
                             <audio controls preload="metadata" src={mediaUrl(track.audio_url)} />
+                            {audioAnalyses[index]?.waveform_url && (
+                              <img
+                                className="waveform-image"
+                                src={mediaUrl(audioAnalyses[index].waveform_url)}
+                                alt={`${track.title || `生成音乐 ${index + 1}`} 波形图`}
+                              />
+                            )}
+                            {audioAnalyses[index]?.inspection && (
+                              <div className="audio-facts">
+                                {audioAnalyses[index].inspection.duration_seconds && (
+                                  <span>{audioAnalyses[index].inspection.duration_seconds.toFixed(0)} 秒</span>
+                                )}
+                                {audioAnalyses[index].inspection.codec_name && (
+                                  <span>{audioAnalyses[index].inspection.codec_name}</span>
+                                )}
+                                {audioAnalyses[index].inspection.sample_rate && (
+                                  <span>{audioAnalyses[index].inspection.sample_rate} Hz</span>
+                                )}
+                              </div>
+                            )}
                           </article>
                         ))}
                       </div>
