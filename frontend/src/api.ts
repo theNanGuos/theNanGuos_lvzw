@@ -36,7 +36,17 @@ export interface PortfolioItem {
   progress: number
   current_stage: string
   latest_run_id?: string
+  tracks: PortfolioTrack[]
   updated_at: string
+}
+
+export interface PortfolioTrack {
+  title: string
+  audio_url: string
+  download_url: string
+  cover_url?: string | null
+  duration_seconds?: number | null
+  style: string
 }
 
 export interface ChatMessage {
@@ -67,6 +77,9 @@ export interface GeneratedTrack {
   local_path: string
   audio_url: string
   download_url: string
+  cover_url?: string | null
+  style?: string
+  duration_seconds?: number | null
 }
 
 export interface DemoAudio {

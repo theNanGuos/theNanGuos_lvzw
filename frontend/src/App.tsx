@@ -7,10 +7,10 @@ import {
   Clock3,
   Download,
   FileAudio,
-  FolderOpen,
   GitBranch,
   Headphones,
   LoaderCircle,
+  Library,
   MessageSquare,
   Play,
   Plus,
@@ -41,9 +41,10 @@ import type {
   RunResult,
 } from './api'
 import { WorkflowCanvas } from './components/WorkflowCanvas'
+import { PortfolioView } from './components/PortfolioView'
 import './App.css'
 
-type View = 'chat' | 'compose' | 'workflow'
+type View = 'chat' | 'compose' | 'portfolio' | 'workflow'
 type RunStatus = 'idle' | 'creating' | 'uploading' | 'running' | 'completed' | 'failed'
 
 const statusCopy: Record<RunStatus, string> = {
@@ -119,6 +120,13 @@ function App() {
   useEffect(() => {
     void refreshPortfolio()
   }, [])
+
+  const hasRunningPortfolioItem = portfolio.some((item) => item.status === 'running')
+  useEffect(() => {
+    if (!hasRunningPortfolioItem) return
+    const timer = window.setInterval(() => void refreshPortfolio(), 1200)
+    return () => window.clearInterval(timer)
+  }, [hasRunningPortfolioItem])
 
   async function refreshPortfolio() {
     try {
@@ -259,6 +267,9 @@ function App() {
           <button className={view === 'compose' ? 'active' : ''} onClick={() => setView('compose')}>
             <AudioLines size={17} /> 创作台
           </button>
+          <button className={view === 'portfolio' ? 'active' : ''} onClick={() => setView('portfolio')}>
+            <Library size={17} /> 作品集
+          </button>
           <button className={view === 'workflow' ? 'active' : ''} onClick={() => setView('workflow')}>
             <GitBranch size={17} /> 工作流
           </button>
@@ -270,26 +281,6 @@ function App() {
           <small>{selectedPreset.description}</small>
         </div>
 
-        <div className="recent-projects">
-          <div className="section-label">本地项目</div>
-          {portfolio.length > 0 ? (
-            <div className="project-list">
-              {portfolio.slice(0, 8).map((item) => (
-                <button type="button" key={item.project_id} onClick={() => void openPortfolioItem(item)}>
-                  <span><strong>{item.title}</strong><small>{item.current_stage}</small></span>
-                  <em>{item.progress}%</em>
-                  <i><span style={{ width: `${item.progress}%` }} /></i>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-projects">
-              <FolderOpen size={18} />
-              <span>暂无本地作品</span>
-            </div>
-          )}
-        </div>
-
         <div className="local-badge"><CircleStop size={13} /> Local workspace</div>
       </aside>
 
@@ -297,7 +288,7 @@ function App() {
         <header className="topbar">
           <div>
             <div className="eyebrow">MUSIC AGENT STUDIO</div>
-            <h1>{view === 'chat' ? '音乐创作对话' : view === 'compose' ? '音乐创作工作台' : '乐团工作流'}</h1>
+            <h1>{view === 'chat' ? '音乐创作对话' : view === 'compose' ? '音乐创作工作台' : view === 'portfolio' ? '我的作品集' : '乐团工作流'}</h1>
           </div>
           <div className={`run-state ${status}`}>
             {busy ? <LoaderCircle className="spin" size={15} /> : <span className="status-dot" />}
@@ -358,6 +349,8 @@ function App() {
               </button>
             </form>
           </section>
+        ) : view === 'portfolio' ? (
+          <PortfolioView items={portfolio} onOpenProject={(item) => void openPortfolioItem(item)} />
         ) : view === 'compose' ? (
           <div className="compose-layout">
             <section className="brief-panel">
