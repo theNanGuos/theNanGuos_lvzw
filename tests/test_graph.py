@@ -1,5 +1,7 @@
 from collections import defaultdict, deque
 
+from langchain_core.messages import AIMessage
+
 from app.graph import build_graph
 from models.state import (
     ArrangementOutput,
@@ -15,17 +17,49 @@ class ScriptedStructuredModel:
         self.responses = defaultdict(deque)
         for response in responses:
             self.responses[type(response)].append(response)
+        self.response_queue = deque(responses)
         self.calls = []
+        self.methods = []
+        self.plain_invocations = 0
 
-    def with_structured_output(self, schema):
+    def invoke(self, messages):
+        self.plain_invocations += 1
+        assert "JSON Schema" in messages[0].content
+        response = self.response_queue.popleft()
+        self.calls.append(type(response))
+        return AIMessage(content=response.model_dump_json())
+
+    def with_structured_output(self, schema, **kwargs):
         model = self
+        model.methods.append(kwargs.get("method"))
 
         class Runner:
             def invoke(self, messages):
                 model.calls.append(schema)
+                assert "JSON Schema" in messages[0].content
                 return model.responses[schema].popleft()
 
         return Runner()
+
+
+class FencedJsonModel:
+    def invoke(self, messages):
+        assert "JSON Schema" in messages[0].content
+        return AIMessage(
+            content='```json\n{"final_prompt":"温暖民谣，木吉他，轻柔人声。"}\n```'
+        )
+
+
+class FailingAfterConductorModel:
+    def __init__(self):
+        self.first = True
+
+    def invoke(self, messages):
+        assert "JSON Schema" in messages[0].content
+        if self.first:
+            self.first = False
+            return AIMessage(content=conductor_output("pop_vocal", vocal=True).model_dump_json())
+        raise RuntimeError("status=200, body=null")
 
 
 def conductor_output(workflow, vocal):
@@ -108,6 +142,8 @@ def test_pop_workflow_includes_lyrics():
     assert result["lyrics"].hook == "灯火仍在等我"
     assert result["final_prompt"].startswith("温暖中文流行")
     assert LyricsOutput in llm.calls
+    assert llm.plain_invocations == 5
+    assert llm.methods == []
 
 
 def test_classical_workflow_skips_lyrics():
@@ -126,3 +162,49 @@ def test_classical_workflow_skips_lyrics():
     assert "lyrics" not in result
     assert "无人声" in result["final_prompt"]
     assert LyricsOutput not in llm.calls
+
+
+def test_prompt_json_accepts_fenced_json():
+    from agents.base import Agent
+
+    agent = Agent(
+        name="Prompt Test Agent",
+        llm=FencedJsonModel(),
+        system_prompt="只返回最终提示词。",
+        output_schema=PromptOutput,
+        input_fields=("user_request",),
+    )
+
+    result = agent({"user_request": "写一首民谣"})
+
+    assert result["final_prompt"].startswith("温暖民谣")
+
+
+def test_json_mode_uses_plain_chat_for_compatibility(monkeypatch):
+    from agents.base import Agent
+
+    monkeypatch.setenv("LLM_STRUCTURED_OUTPUT_METHOD", "json_mode")
+    model = FencedJsonModel()
+    agent = Agent(
+        name="Prompt Test Agent",
+        llm=model,
+        system_prompt="只返回最终提示词。",
+        output_schema=PromptOutput,
+        input_fields=("user_request",),
+    )
+
+    result = agent({"user_request": "写一首民谣"})
+
+    assert result["final_prompt"].startswith("温暖民谣")
+
+
+def test_creative_agents_fallback_when_model_returns_empty_response():
+    result = build_graph(FailingAfterConductorModel()).invoke(
+        {"user_request": "一首旋律轻快的芭乐流行曲"}
+    )
+
+    assert result["workflow"] == "pop_vocal"
+    assert result["lyrics"].hook
+    assert result["melody_plan"].tempo
+    assert result["arrangement_plan"].instrumentation
+    assert result["final_prompt"]
