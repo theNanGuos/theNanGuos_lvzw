@@ -16,7 +16,8 @@ button { letter-spacing: 0; }
 .app-shell { min-height: 100vh; display: grid; grid-template-columns: 224px minmax(0, 1fr); background: #eef1ef; color: var(--ink); }
 .sidebar { background: #202824; color: #ecf0ed; min-height: 100vh; padding: 22px 14px; display: flex; flex-direction: column; border-right: 1px solid #111713; }
 .brand { height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 8px; font-weight: 700; font-size: 15px; }
-.brand-mark { width: 30px; height: 30px; display: grid; place-items: center; background: var(--accent); border-radius: 6px; }
+.brand-mark { width: 30px; height: 30px; display: grid; place-items: center; background: white; border-radius: 6px; overflow: hidden; }
+.brand-mark img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .new-project { margin: 24px 2px 18px; height: 38px; border: 1px solid #4a5550; border-radius: 5px; color: white; background: #303a35; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
 .new-project:hover { background: #3a4640; }
 .side-nav { display: grid; gap: 4px; }

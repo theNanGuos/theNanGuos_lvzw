@@ -9,7 +9,6 @@ import {
   GitBranch,
   Headphones,
   LoaderCircle,
-  Music2,
   Play,
   Plus,
   SlidersHorizontal,
@@ -82,7 +81,7 @@ function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand" aria-label="南郭先生们">
-          <span className="brand-mark"><Music2 size={19} /></span>
+          <span className="brand-mark"><img src="/icons.png" alt="" /></span>
           <span>南郭先生们</span>
         </div>
 
