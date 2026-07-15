@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   AudioLines,
   CheckCircle2,
@@ -11,20 +11,39 @@ import {
   GitBranch,
   Headphones,
   LoaderCircle,
+  MessageSquare,
   Play,
   Plus,
   SlidersHorizontal,
   Sparkles,
+  Send,
   Upload,
   Waves,
   X,
 } from 'lucide-react'
-import { createProject, mediaUrl, runProject, uploadAsset } from './api'
-import type { DemoAudio, GeneratedAudioAnalysis, GeneratedTrack, Preset, RunResult } from './api'
+import {
+  createProject,
+  createSession,
+  getRun,
+  listPortfolio,
+  mediaUrl,
+  runProjectAsync,
+  sendChatMessage,
+  uploadAsset,
+} from './api'
+import type {
+  ChatMessage,
+  DemoAudio,
+  GeneratedAudioAnalysis,
+  GeneratedTrack,
+  PortfolioItem,
+  Preset,
+  RunResult,
+} from './api'
 import { WorkflowCanvas } from './components/WorkflowCanvas'
 import './App.css'
 
-type View = 'compose' | 'workflow'
+type View = 'chat' | 'compose' | 'workflow'
 type RunStatus = 'idle' | 'creating' | 'uploading' | 'running' | 'completed' | 'failed'
 
 const statusCopy: Record<RunStatus, string> = {
@@ -62,7 +81,7 @@ function stepState(current: RunStatus, step: RunStatus) {
 }
 
 function App() {
-  const [view, setView] = useState<View>('compose')
+  const [view, setView] = useState<View>('chat')
   const [title, setTitle] = useState('未命名作品')
   const [request, setRequest] = useState('')
   const [preset, setPreset] = useState<Preset>('auto')
@@ -70,6 +89,13 @@ function App() {
   const [status, setStatus] = useState<RunStatus>('idle')
   const [result, setResult] = useState<RunResult | null>(null)
   const [error, setError] = useState('')
+  const [progress, setProgress] = useState(0)
+  const [currentStage, setCurrentStage] = useState('draft')
+  const [portfolio, setPortfolio] = useState<PortfolioItem[]>([])
+  const [sessionId, setSessionId] = useState('')
+  const [chatInput, setChatInput] = useState('')
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatSending, setChatSending] = useState(false)
 
   const busy = ['creating', 'uploading', 'running'].includes(status)
   const finalPrompt = useMemo(
@@ -90,12 +116,45 @@ function App() {
   )
   const selectedPreset = presetOptions.find((option) => option.value === preset) ?? presetOptions[0]
 
+  useEffect(() => {
+    void refreshPortfolio()
+  }, [])
+
+  async function refreshPortfolio() {
+    try {
+      setPortfolio(await listPortfolio())
+    } catch {
+      // The primary workspace remains usable when the local API is unavailable.
+    }
+  }
+
+  async function monitorRun(projectId: string, runId: string) {
+    setStatus('running')
+    for (;;) {
+      const run = await getRun(projectId, runId)
+      setProgress(run.progress)
+      setCurrentStage(run.current_stage)
+      if (run.status === 'completed') {
+        setResult(run)
+        setStatus('completed')
+        await refreshPortfolio()
+        return
+      }
+      if (run.status === 'failed') {
+        throw new Error(run.error || '音乐工作流执行失败')
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 800))
+    }
+  }
+
   async function handleRun() {
     if (!request.trim() || busy) return
     setError('')
     setResult(null)
     try {
       setStatus('creating')
+      setProgress(2)
+      setCurrentStage('creating_project')
       const project = await createProject({
         title: title.trim() || '未命名作品',
         user_request: request.trim(),
@@ -103,14 +162,80 @@ function App() {
       })
       if (audio) {
         setStatus('uploading')
+        setProgress(5)
+        setCurrentStage('uploading_reference')
         await uploadAsset(project.id, audio)
       }
       setStatus('running')
-      const run = await runProject(project.id)
-      setResult(run)
-      setStatus('completed')
+      const run = await runProjectAsync(project.id)
+      await monitorRun(project.id, run.id)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '未知错误')
+      setStatus('failed')
+    }
+  }
+
+  async function handleChat() {
+    const content = chatInput.trim()
+    if (!content || chatSending) return
+    setChatSending(true)
+    setChatInput('')
+    setError('')
+    setChatMessages((messages) => [
+      ...messages,
+      { id: `pending-${Date.now()}`, role: 'user', content, created_at: new Date().toISOString() },
+    ])
+    try {
+      let activeSessionId = sessionId
+      if (!activeSessionId) {
+        const session = await createSession(content.slice(0, 36))
+        activeSessionId = session.id
+        setSessionId(session.id)
+      }
+      const response = await sendChatMessage(activeSessionId, content)
+      setChatMessages(response.session.messages)
+      if (response.project_id) {
+        const item = (await listPortfolio()).find((entry) => entry.project_id === response.project_id)
+        if (item) {
+          setTitle(item.title)
+          setRequest(item.user_request)
+          setPreset(item.preset)
+          setProgress(item.progress)
+          setCurrentStage(item.current_stage)
+        }
+      }
+      await refreshPortfolio()
+      if (response.project_id && response.run_id) {
+        setChatSending(false)
+        await monitorRun(response.project_id, response.run_id)
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '未知错误')
+      setStatus('failed')
+    } finally {
+      setChatSending(false)
+    }
+  }
+
+  async function openPortfolioItem(item: PortfolioItem) {
+    setTitle(item.title)
+    setRequest(item.user_request)
+    setPreset(item.preset)
+    setProgress(item.progress)
+    setCurrentStage(item.current_stage)
+    setStatus(item.status === 'draft' ? 'idle' : item.status)
+    setResult(null)
+    setView('compose')
+    if (!item.latest_run_id) return
+    try {
+      if (item.status === 'running') {
+        await monitorRun(item.project_id, item.latest_run_id)
+      } else {
+        const run = await getRun(item.project_id, item.latest_run_id)
+        setResult(run)
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '作品读取失败')
       setStatus('failed')
     }
   }
@@ -128,6 +253,9 @@ function App() {
         </button>
 
         <nav className="side-nav" aria-label="工作区导航">
+          <button className={view === 'chat' ? 'active' : ''} onClick={() => setView('chat')}>
+            <MessageSquare size={17} /> 对话
+          </button>
           <button className={view === 'compose' ? 'active' : ''} onClick={() => setView('compose')}>
             <AudioLines size={17} /> 创作台
           </button>
@@ -144,10 +272,22 @@ function App() {
 
         <div className="recent-projects">
           <div className="section-label">本地项目</div>
-          <div className="empty-projects">
-            <FolderOpen size={18} />
-            <span>运行后的项目保存在本地</span>
-          </div>
+          {portfolio.length > 0 ? (
+            <div className="project-list">
+              {portfolio.slice(0, 8).map((item) => (
+                <button type="button" key={item.project_id} onClick={() => void openPortfolioItem(item)}>
+                  <span><strong>{item.title}</strong><small>{item.current_stage}</small></span>
+                  <em>{item.progress}%</em>
+                  <i><span style={{ width: `${item.progress}%` }} /></i>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-projects">
+              <FolderOpen size={18} />
+              <span>暂无本地作品</span>
+            </div>
+          )}
         </div>
 
         <div className="local-badge"><CircleStop size={13} /> Local workspace</div>
@@ -157,7 +297,7 @@ function App() {
         <header className="topbar">
           <div>
             <div className="eyebrow">MUSIC AGENT STUDIO</div>
-            <h1>{view === 'compose' ? '音乐创作工作台' : '乐团工作流'}</h1>
+            <h1>{view === 'chat' ? '音乐创作对话' : view === 'compose' ? '音乐创作工作台' : '乐团工作流'}</h1>
           </div>
           <div className={`run-state ${status}`}>
             {busy ? <LoaderCircle className="spin" size={15} /> : <span className="status-dot" />}
@@ -165,7 +305,60 @@ function App() {
           </div>
         </header>
 
-        {view === 'compose' ? (
+        {view === 'chat' ? (
+          <section className="chat-panel">
+            <div className="chat-heading">
+              <div>
+                <span>CHAT AGENT</span>
+                <h2>和乐团聊聊你的下一首作品</h2>
+              </div>
+              <MessageSquare size={20} />
+            </div>
+            <div className="chat-messages" aria-live="polite">
+              {chatMessages.length === 0 ? (
+                <div className="chat-empty">
+                  <Sparkles size={24} />
+                  <strong>从一个想法开始</strong>
+                </div>
+              ) : chatMessages.map((message) => (
+                <article className={`chat-message ${message.role}`} key={message.id}>
+                  <span>{message.role === 'user' ? '你' : 'Chat Agent'}</span>
+                  <p>{message.content}</p>
+                </article>
+              ))}
+              {chatSending && (
+                <div className="chat-thinking"><LoaderCircle className="spin" size={15} /> 正在处理</div>
+              )}
+            </div>
+            {(status === 'running' || status === 'completed') && (
+              <div className="chat-progress">
+                <div><strong>{title}</strong><span>{currentStage} · {progress}%</span></div>
+                <i><span style={{ width: `${progress}%` }} /></i>
+                {status === 'completed' && (
+                  <button type="button" onClick={() => setView('compose')}>查看作品 <ChevronRight size={15} /></button>
+                )}
+              </div>
+            )}
+            {error && <div className="chat-error">{error}</div>}
+            <form className="chat-composer" onSubmit={(event) => { event.preventDefault(); void handleChat() }}>
+              <textarea
+                value={chatInput}
+                onChange={(event) => setChatInput(event.target.value)}
+                placeholder="例如：以后默认给我做纯音乐，这次想要一首雨夜氛围电子曲"
+                maxLength={4000}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault()
+                    void handleChat()
+                  }
+                }}
+              />
+              <button type="submit" disabled={!chatInput.trim() || chatSending} title="发送">
+                {chatSending ? <LoaderCircle className="spin" size={18} /> : <Send size={18} />}
+              </button>
+            </form>
+          </section>
+        ) : view === 'compose' ? (
           <div className="compose-layout">
             <section className="brief-panel">
               <div className="panel-heading">
@@ -268,6 +461,10 @@ function App() {
                 <span>状态</span>
                 <strong>{statusCopy[status]}</strong>
               </div>
+              <div className="progress-track" aria-label={`执行进度 ${progress}%`}>
+                <span style={{ width: `${progress}%` }} />
+              </div>
+              <div className="stage-label"><span>{currentStage}</span><strong>{progress}%</strong></div>
             </section>
 
             <section className="result-panel">

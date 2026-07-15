@@ -10,12 +10,55 @@ export interface Project {
   title: string
   user_request: string
   preset: Preset
+  status: 'draft' | 'running' | 'completed' | 'failed'
+  progress: number
+  current_stage: string
+  latest_run_id?: string
+  error?: string
 }
 
 export interface RunResult {
   id: string
   project_id: string
   state: Record<string, unknown>
+  status: 'draft' | 'running' | 'completed' | 'failed'
+  progress: number
+  current_stage: string
+  error?: string
+}
+
+export interface PortfolioItem {
+  project_id: string
+  title: string
+  user_request: string
+  preset: Preset
+  status: Project['status']
+  progress: number
+  current_stage: string
+  latest_run_id?: string
+  updated_at: string
+}
+
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  created_at: string
+}
+
+export interface ChatSession {
+  id: string
+  title: string
+  messages: ChatMessage[]
+  active_project_id?: string
+}
+
+export interface ChatResponse {
+  session: ChatSession
+  message: ChatMessage
+  action: string
+  project_id?: string
+  run_id?: string
 }
 
 export interface GeneratedTrack {
@@ -78,6 +121,34 @@ export function uploadAsset(projectId: string, file: File) {
 
 export function runProject(projectId: string) {
   return request<RunResult>(`/api/projects/${projectId}/runs`, { method: 'POST' })
+}
+
+export function runProjectAsync(projectId: string) {
+  return request<RunResult>(`/api/projects/${projectId}/runs/async`, { method: 'POST' })
+}
+
+export function getRun(projectId: string, runId: string) {
+  return request<RunResult>(`/api/projects/${projectId}/runs/${runId}`)
+}
+
+export function listPortfolio() {
+  return request<PortfolioItem[]>('/api/portfolio')
+}
+
+export function createSession(title = '新会话') {
+  return request<ChatSession>('/api/sessions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  })
+}
+
+export function sendChatMessage(sessionId: string, content: string) {
+  return request<ChatResponse>(`/api/sessions/${sessionId}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  })
 }
 
 export function mediaUrl(path: string) {
