@@ -33,10 +33,12 @@ function AgentNode({ data }: NodeProps<Node<AgentData>>) {
   const Icon = icons[data.kind as keyof typeof icons]
   return (
     <div className={`agent-node ${data.kind}`}>
-      <Handle type="target" position={Position.Left} />
+      <Handle id="left-target" type="target" position={Position.Left} />
+      <Handle id="top-target" type="target" position={Position.Top} />
       <span><Icon size={16} /></span>
       <div><strong>{data.label}</strong><small>{data.role}</small></div>
-      <Handle type="source" position={Position.Right} />
+      <Handle id="right-source" type="source" position={Position.Right} />
+      <Handle id="bottom-source" type="source" position={Position.Bottom} />
     </div>
   )
 }
@@ -44,23 +46,24 @@ function AgentNode({ data }: NodeProps<Node<AgentData>>) {
 const nodeTypes = { agent: AgentNode }
 
 function graphForPreset(preset: Preset): { nodes: Node<AgentData>[]; edges: Edge[] } {
+  type EdgePair = [string, string, string?, string?]
   const definitions: Array<[string, string, string, number, number]> = [
-    ['conductor', '指挥', '分析与分工', 30, 88],
+    ['conductor', '指挥', '分析与分工', 20, 88],
     ...(preset === 'pop_vocal' || preset === 'auto'
-      ? [['lyrics', '作词', '歌词与 Hook', 225, 38] as [string, string, string, number, number]]
+      ? [['lyrics', '作词', '歌词与 Hook', 170, 38] as [string, string, string, number, number]]
       : []),
     ...(preset === 'electronic_instrumental'
-      ? [['rhythm', '节奏', 'Groove 与低频', 225, 138] as [string, string, string, number, number]]
+      ? [['rhythm', '节奏', 'Groove 与低频', 170, 138] as [string, string, string, number, number]]
       : []),
-    ['melody', '作曲', '主题与旋律', 420, 88],
-    ['harmony', '和声', '张力与进行', 615, 38],
+    ['melody', '作曲', '主题与旋律', 320, 88],
+    ['harmony', '和声', '张力与进行', 470, 38],
     ...(preset !== 'electronic_instrumental'
-      ? [['rhythm', '节奏', '律动与能量', 615, 138] as [string, string, string, number, number]]
+      ? [['rhythm', '节奏', '律动与能量', 470, 138] as [string, string, string, number, number]]
       : []),
-    ['arrange', '编曲', '配器与织体', 810, 88],
-    ['sound', '音色', '声景与质感', 1005, 38],
-    ['review', '审听', '平衡与风险', 1005, 138],
-    ['prompt', '提示词', '汇总与编译', 1200, 88],
+    ['arrange', '编曲', '配器与织体', 620, 88],
+    ['sound', '音色', '声景与质感', 770, 38],
+    ['review', '审听', '平衡与风险', 770, 138],
+    ['prompt', '提示词', '汇总与编译', 920, 88],
   ]
   const nodes: Node<AgentData>[] = definitions.map(([kind, label, role, x, y]) => ({
     id: kind,
@@ -68,33 +71,35 @@ function graphForPreset(preset: Preset): { nodes: Node<AgentData>[]; edges: Edge
     position: { x, y },
     data: { kind, label, role },
   }))
-  const edgePairs =
+  const edgePairs: EdgePair[] =
     preset === 'electronic_instrumental'
       ? [
-          ['conductor', 'rhythm'],
-          ['rhythm', 'melody'],
-          ['melody', 'harmony'],
-          ['harmony', 'arrange'],
-          ['arrange', 'sound'],
-          ['sound', 'review'],
-          ['review', 'prompt'],
+          ['conductor', 'rhythm'] as EdgePair,
+          ['rhythm', 'melody'] as EdgePair,
+          ['melody', 'harmony'] as EdgePair,
+          ['harmony', 'arrange', 'right-source', 'left-target'],
+          ['arrange', 'sound'] as EdgePair,
+          ['sound', 'review', 'bottom-source', 'top-target'],
+          ['review', 'prompt'] as EdgePair,
         ]
       : [
-          ['conductor', preset === 'classical_instrumental' || preset === 'soundtrack_score' ? 'melody' : 'lyrics'],
-          ...(preset === 'classical_instrumental' || preset === 'soundtrack_score' ? [] : [['lyrics', 'melody']]),
-          ['melody', 'harmony'],
-          ...(preset === 'classical_instrumental' || preset === 'soundtrack_score' ? [] : [['harmony', 'rhythm']]),
-          [preset === 'classical_instrumental' || preset === 'soundtrack_score' ? 'harmony' : 'rhythm', 'arrange'],
-          ['arrange', 'sound'],
-          ['sound', 'review'],
-          ['review', 'prompt'],
+          ['conductor', preset === 'classical_instrumental' || preset === 'soundtrack_score' ? 'melody' : 'lyrics'] as EdgePair,
+          ...(preset === 'classical_instrumental' || preset === 'soundtrack_score' ? [] : [['lyrics', 'melody'] as EdgePair]),
+          ['melody', 'harmony'] as EdgePair,
+          ...(preset === 'classical_instrumental' || preset === 'soundtrack_score' ? [] : [['harmony', 'rhythm', 'bottom-source', 'top-target'] as EdgePair]),
+          [preset === 'classical_instrumental' || preset === 'soundtrack_score' ? 'harmony' : 'rhythm', 'arrange', 'right-source', 'left-target'],
+          ['arrange', 'sound'] as EdgePair,
+          ['sound', 'review', 'bottom-source', 'top-target'],
+          ['review', 'prompt'] as EdgePair,
         ]
-  const edges = edgePairs.map(([source, target]) => ({
+  const edges = edgePairs.map(([source, target, sourceHandle = 'right-source', targetHandle = 'left-target']) => ({
     id: `${source}-${target}`,
     source,
     target,
+    sourceHandle,
+    targetHandle,
     markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
-    style: { stroke: '#85908b', strokeWidth: 1.5 },
+    style: { stroke: '#7b8a82', strokeWidth: 2 },
   }))
   return { nodes, edges }
 }

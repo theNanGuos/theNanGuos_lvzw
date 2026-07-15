@@ -32,6 +32,14 @@ const statusCopy: Record<RunStatus, string> = {
   failed: '执行失败',
 }
 
+const presetOptions: Array<{ value: Preset; label: string; description: string }> = [
+  { value: 'auto', label: '自动选择', description: '由指挥 Agent 判断最合适的乐团路径' },
+  { value: 'pop_vocal', label: '流行人声', description: '歌词、旋律、节奏和制作完整协作' },
+  { value: 'classical_instrumental', label: '古典器乐', description: '主题、和声、配器与可选乐谱导出' },
+  { value: 'electronic_instrumental', label: '电子器乐', description: '节奏先行，突出低频和音色设计' },
+  { value: 'soundtrack_score', label: '影视配乐', description: '情绪叙事、空间声景和主题发展' },
+]
+
 function App() {
   const [view, setView] = useState<View>('compose')
   const [title, setTitle] = useState('未命名作品')
@@ -59,6 +67,7 @@ function App() {
     () => (result?.state.generated_audio_analysis as GeneratedAudioAnalysis[] | undefined) ?? [],
     [result],
   )
+  const selectedPreset = presetOptions.find((option) => option.value === preset) ?? presetOptions[0]
 
   async function handleRun() {
     if (!request.trim() || busy) return
@@ -155,22 +164,14 @@ function App() {
 
               <fieldset className="field">
                 <legend>预设乐团</legend>
-                <div className="preset-control">
-                  {([
-                    ['auto', '自动'],
-                    ['pop_vocal', '流行人声'],
-                    ['classical_instrumental', '古典器乐'],
-                    ['electronic_instrumental', '电子器乐'],
-                    ['soundtrack_score', '影视配乐'],
-                  ] as const).map(([value, label]) => (
-                    <button
-                      type="button"
-                      key={value}
-                      className={preset === value ? 'selected' : ''}
-                      onClick={() => setPreset(value)}
-                    >{label}</button>
-                  ))}
+                <div className="select-wrap">
+                  <select value={preset} onChange={(event) => setPreset(event.target.value as Preset)}>
+                    {presetOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
                 </div>
+                <p className="preset-help">{selectedPreset.description}</p>
               </fieldset>
 
               <label className={`upload-zone ${audio ? 'has-file' : ''}`}>
@@ -278,20 +279,12 @@ function App() {
                 <h2>乐团编排</h2>
                 <p>拖动节点检查当前预设的执行路径</p>
               </div>
-              <div className="preset-control compact-control">
-                {(['auto', 'pop_vocal', 'classical_instrumental', 'electronic_instrumental', 'soundtrack_score'] as Preset[]).map((value) => (
-                  <button key={value} className={preset === value ? 'selected' : ''} onClick={() => setPreset(value)}>
-                    {value === 'auto'
-                      ? '自动'
-                      : value === 'pop_vocal'
-                        ? '流行人声'
-                        : value === 'classical_instrumental'
-                          ? '古典器乐'
-                          : value === 'electronic_instrumental'
-                            ? '电子器乐'
-                            : '影视配乐'}
-                  </button>
-                ))}
+              <div className="select-wrap workflow-select">
+                <select value={preset} onChange={(event) => setPreset(event.target.value as Preset)}>
+                  {presetOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="full-flow"><WorkflowCanvas preset={preset} /></div>
