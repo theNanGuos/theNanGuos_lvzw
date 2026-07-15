@@ -3,8 +3,9 @@ import json
 import httpx
 import pytest
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
 
-from agents.init import OpenAICompatibleChat
+from agents.init import OpenAICompatibleChat, create_llm
 
 
 def test_openai_compatible_chat_reads_message_content():
@@ -92,3 +93,14 @@ def test_openai_compatible_chat_retries_null_response():
 
     assert response.content == '{"ok": true}'
     assert attempts == 2
+
+
+def test_create_llm_uses_chat_openai_for_tool_calling(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://llm.test/v1")
+    monkeypatch.setenv("MODEL_NAME", "test-model")
+    monkeypatch.setenv("LLM_STRUCTURED_OUTPUT_METHOD", "function_calling")
+
+    llm = create_llm()
+
+    assert isinstance(llm, ChatOpenAI)

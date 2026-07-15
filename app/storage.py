@@ -86,6 +86,10 @@ class LocalProjectStore:
         path.mkdir(parents=True, exist_ok=True)
         return path
 
+    def asset_file_path(self, project_id: str, asset: Asset) -> Path:
+        self.get_project(project_id)
+        return self._project_dir(project_id) / asset.path
+
     def _project_dir(self, project_id: str) -> Path:
         if not project_id.isalnum():
             raise ProjectNotFoundError(project_id)

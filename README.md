@@ -33,9 +33,9 @@ MODEL_NAME=your-model
 OPENAI_API_KEY=your-api-key
 OPENAI_BASE_URL=https://your-openai-compatible-endpoint/v1
 
-# OpenAI 兼容服务优先使用 json_mode；本项目会用普通聊天请求返回 JSON，再在本地校验
-# 若服务明确支持工具调用或 OpenAI structured outputs，可改为 function_calling/json_schema
-LLM_STRUCTURED_OUTPUT_METHOD=json_mode
+# 使用 function_calling/json_schema 时会通过 ChatOpenAI 启用 structured output 和 tool calling
+# 若兼容服务不支持工具调用，可退回 json_mode/prompt_json
+LLM_STRUCTURED_OUTPUT_METHOD=function_calling
 
 # 仅使用 --generate 时需要
 KIE_API_KEY=your-kie-api-key
@@ -101,6 +101,8 @@ npm run dev
 这些工具都使用参数列表调用命令行程序，不拼接 shell 字符串；命令失败、缺少工具或超时会抛出清晰错误。使用前需在本机安装对应命令行工具，例如 `ffmpeg` 和 `ffprobe`。
 
 `skills/` 目录提供按职能划分的 Agent 技能说明。Agent 初始化时会把对应 `SKILL.md` 加载进系统提示词，例如 Lyrics Agent 加载参考音频作词技能，Melody Agent 加载 demo 音频规划技能，Arrange Agent 加载音频分析编曲技能，Prompt Compiler 加载 Suno 生成交接技能。
+
+当 `LLM_STRUCTURED_OUTPUT_METHOD=function_calling` 或 `json_schema` 时，LLM 初始化会回到 `ChatOpenAI`，上传参考音频会先进入 Audio Reference Agent。该节点使用 `llm.bind_tools(...)` 让模型调用白名单工具，例如 `inspect_uploaded_audio`、`create_uploaded_audio_preview` 和 `render_uploaded_audio_waveform`；工具参数只允许使用上传资产索引，不允许模型传任意本地路径。
 
 ## 测试
 

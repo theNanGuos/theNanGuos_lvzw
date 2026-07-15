@@ -2,6 +2,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END, START, StateGraph
 
 from agents.arrange import ArrangeAgent
+from agents.audio_reference import AudioReferenceAgent
 from agents.conductor import ConductorAgent
 from agents.lyrics import LyricsAgent
 from agents.melody import MelodyAgent
@@ -23,6 +24,7 @@ def route_score_export(state: State) -> str:
 def build_graph(llm: BaseChatModel):
     builder = StateGraph(State)
 
+    builder.add_node("audio_reference", AudioReferenceAgent(llm))
     builder.add_node("conductor", ConductorAgent(llm))
     builder.add_node("lyrics", LyricsAgent(llm))
     builder.add_node("melody", MelodyAgent(llm))
@@ -30,7 +32,8 @@ def build_graph(llm: BaseChatModel):
     builder.add_node("score_export", export_score_node)
     builder.add_node("prompt_compiler", PromptCompilerAgent(llm))
 
-    builder.add_edge(START, "conductor")
+    builder.add_edge(START, "audio_reference")
+    builder.add_edge("audio_reference", "conductor")
     builder.add_conditional_edges(
         "conductor",
         route_workflow,

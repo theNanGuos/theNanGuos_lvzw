@@ -106,7 +106,7 @@ def test_project_lifecycle_is_persisted_locally(tmp_path):
 
 
 def test_audio_upload_is_saved_as_project_asset(tmp_path):
-    client, store, _, _ = make_client(tmp_path)
+    client, store, runner, _ = make_client(tmp_path)
     project = client.post(
         "/api/projects",
         json={"title": "参考音频", "user_request": "参考上传的音频创作"},
@@ -121,6 +121,12 @@ def test_audio_upload_is_saved_as_project_asset(tmp_path):
     asset = response.json()
     assert asset["filename"] == "reference.mp3"
     assert (store.root / project["id"] / asset["path"]).read_bytes() == b"fake audio"
+
+    run_response = client.post(f"/api/projects/{project['id']}/runs")
+    assert run_response.status_code == 200
+    assert runner.inputs[0]["reference_audio_paths"] == [
+        str(store.root / project["id"] / asset["path"])
+    ]
 
 
 def test_rejects_unsupported_asset_type(tmp_path):

@@ -161,6 +161,10 @@ def create_app(
                         "user_request": project.user_request,
                         "preset": project.preset,
                         "artifact_dir": str(project_store.artifact_dir(project_id)),
+                        "reference_audio_paths": [
+                            str(project_store.asset_file_path(project_id, asset))
+                            for asset in project.assets
+                        ],
                     }
                 )
                 final_prompt = result.get("final_prompt")
