@@ -33,13 +33,21 @@ MODEL_NAME=your-model
 OPENAI_API_KEY=your-api-key
 OPENAI_BASE_URL=https://your-openai-compatible-endpoint/v1
 
+# OpenAI 兼容服务优先使用 json_mode；本项目会用普通聊天请求返回 JSON，再在本地校验
+# 若服务明确支持工具调用或 OpenAI structured outputs，可改为 function_calling/json_schema
+LLM_STRUCTURED_OUTPUT_METHOD=json_mode
+
 # 仅使用 --generate 时需要
 KIE_API_KEY=your-kie-api-key
 KIE_BASE_URL=https://api.kie.ai
 KIE_MODEL=V4
+KIE_CALLBACK_URL=https://your-public-host.example.com/kie/callback
+
+# 器乐 custom mode 未从工作流传入风格时使用
+KIE_STYLE=Classical
 ```
 
-安装依赖并运行：
+安装依赖并运行 CLI：
 
 ```bash
 uv sync
@@ -52,23 +60,26 @@ uv run python main.py "生成一首温暖的中文民谣"
 uv run python main.py "生成一首温暖的中文民谣" --generate
 ```
 
-启动本地 API：
+KIE/Suno provider 按 Kie 文档调用 `POST /api/v1/generate`。提交请求需要 Bearer token、`model`、`customMode`、`instrumental` 和 `callBackUrl`；本项目提交后仍会轮询 `/api/v1/generate/record-info` 下载生成结果。器乐生成会使用 custom mode，因此必须有 `style` 和 `title`，CLI 会优先使用工作流产生的标题和风格。
+
+一键启动本地开发环境：
+
+```bash
+./start.sh
+```
+
+脚本会在缺少 `.venv` 或 `frontend/node_modules` 时自动安装依赖，并同时启动后端和前端。API 默认位于 `http://127.0.0.1:8000`，交互文档位于 `/docs`，创作工作台位于 `http://127.0.0.1:5173`。按 `Ctrl+C` 会停止两个开发服务。
+
+如需手动启动，分别运行：
 
 ```bash
 uv run uvicorn app.api:app --reload
-```
 
-API 默认位于 `http://127.0.0.1:8000`，交互文档位于 `/docs`。项目元数据、上传音频和运行结果分别保存在 `data/projects/<project-id>/` 下的 `project.json`、`assets/` 和 `runs/` 中。
-
-另开一个终端启动前端：
-
-```bash
 cd frontend
-npm install
 npm run dev
 ```
 
-创作工作台位于 `http://127.0.0.1:5173`。
+项目元数据、上传音频和运行结果分别保存在 `data/projects/<project-id>/` 下的 `project.json`、`assets/` 和 `runs/` 中。
 
 ## 测试
 
