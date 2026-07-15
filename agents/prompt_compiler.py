@@ -2,6 +2,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 
 from agents.base import Agent
 from lib.prompt import prompt_compiler
+from lib.skills import with_skills
 from models.state import State, PromptOutput
 
 
@@ -10,7 +11,7 @@ class PromptCompilerAgent(Agent):
         super().__init__(
             name="Prompt Compiler Agent",
             llm=llm,
-            system_prompt=prompt_compiler(),
+            system_prompt=with_skills(prompt_compiler(), "suno-prompt-tool-handoff"),
             output_schema=PromptOutput,
             input_fields=(
                 "user_request",

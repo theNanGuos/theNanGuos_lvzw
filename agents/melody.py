@@ -1,6 +1,7 @@
 from agents.base import Agent
 from langchain_core.language_models.chat_models import BaseChatModel
 from lib.prompt import melody
+from lib.skills import with_skills
 from models.state import MelodyOutput, MelodyPlan, State
 
 class MelodyAgent(Agent):
@@ -8,9 +9,7 @@ class MelodyAgent(Agent):
         super().__init__(
             name = "Melody Agent",
             llm = llm,
-            system_prompt = (
-                melody()
-            ),
+            system_prompt=with_skills(melody(), "melody-demo-audio"),
             output_schema=MelodyOutput,
             input_fields=(
                 "user_request",

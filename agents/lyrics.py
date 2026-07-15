@@ -1,6 +1,7 @@
 from agents.base import Agent
 from langchain_core.language_models.chat_models import BaseChatModel
 from lib.prompt import lyrics
+from lib.skills import with_skills
 from models.state import LyricsDraft, LyricsOutput, State
 
 class LyricsAgent(Agent):
@@ -8,9 +9,7 @@ class LyricsAgent(Agent):
         super().__init__(
             name = "Lyrics Agent",
             llm = llm,
-            system_prompt = (
-                lyrics()
-            ),
+            system_prompt=with_skills(lyrics(), "lyrics-reference-audio"),
             output_schema=LyricsOutput,
             input_fields=("user_request", "creative_brief", "instructions_for_agents"),
         )

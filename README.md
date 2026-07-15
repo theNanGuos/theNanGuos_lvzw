@@ -100,6 +100,8 @@ npm run dev
 
 这些工具都使用参数列表调用命令行程序，不拼接 shell 字符串；命令失败、缺少工具或超时会抛出清晰错误。使用前需在本机安装对应命令行工具，例如 `ffmpeg` 和 `ffprobe`。
 
+`skills/` 目录提供按职能划分的 Agent 技能说明。Agent 初始化时会把对应 `SKILL.md` 加载进系统提示词，例如 Lyrics Agent 加载参考音频作词技能，Melody Agent 加载 demo 音频规划技能，Arrange Agent 加载音频分析编曲技能，Prompt Compiler 加载 Suno 生成交接技能。
+
 ## 测试
 
 ```bash
@@ -121,6 +123,7 @@ npm run test:e2e
 - `app/`：LangGraph 工作流。
 - `models/`：结构化状态和输出模型。
 - `prompts/`：各角色的系统提示词。
+- `skills/`：各角色加载的技能说明。
 - `lib/`：提示词加载、音乐服务等工具。
 - `tools/`：音频分析、预览生成、波形渲染和 demo 音频渲染工具。
 - `providers/`：音乐生成供应商适配。

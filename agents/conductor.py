@@ -1,6 +1,7 @@
 from agents.base import Agent
 from langchain_core.language_models.chat_models import BaseChatModel
 from lib.prompt import conductor
+from lib.skills import with_skills
 from models.state import ConductorOutput
 
 class ConductorAgent(Agent):
@@ -8,9 +9,7 @@ class ConductorAgent(Agent):
         super().__init__(
             name = "Conductor Agent",
             llm = llm,
-            system_prompt = (
-                conductor()
-            ),
+            system_prompt=with_skills(conductor(), "conductor-tool-routing"),
             output_schema=ConductorOutput,
             input_fields=("user_request", "preset"),
         )
