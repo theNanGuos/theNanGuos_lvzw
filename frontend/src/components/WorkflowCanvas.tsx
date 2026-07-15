@@ -113,8 +113,8 @@ export function WorkflowCanvas({ preset, compact = false }: { preset: Preset; co
       edges={graph.edges}
       nodeTypes={nodeTypes}
       fitView
-      fitViewOptions={{ padding: compact ? 0.12 : 0.25 }}
-      minZoom={0.45}
+      fitViewOptions={{ padding: compact ? 0.2 : 0.25 }}
+      minZoom={compact ? 0.2 : 0.35}
       maxZoom={1.5}
       nodesConnectable={false}
       elementsSelectable={!compact}

@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import {
   AudioLines,
+  CheckCircle2,
   ChevronRight,
   CircleStop,
+  Clock3,
   Download,
   FileAudio,
   FolderOpen,
@@ -14,6 +16,8 @@ import {
   SlidersHorizontal,
   Sparkles,
   Upload,
+  Waves,
+  X,
 } from 'lucide-react'
 import { createProject, mediaUrl, runProject, uploadAsset } from './api'
 import type { DemoAudio, GeneratedAudioAnalysis, GeneratedTrack, Preset, RunResult } from './api'
@@ -39,6 +43,23 @@ const presetOptions: Array<{ value: Preset; label: string; description: string }
   { value: 'electronic_instrumental', label: '电子器乐', description: '节奏先行，突出低频和音色设计' },
   { value: 'soundtrack_score', label: '影视配乐', description: '情绪叙事、空间声景和主题发展' },
 ]
+
+const statusSteps: Array<{ value: RunStatus; label: string }> = [
+  { value: 'creating', label: '建档' },
+  { value: 'uploading', label: '参考' },
+  { value: 'running', label: '生成' },
+  { value: 'completed', label: '完成' },
+]
+
+function stepState(current: RunStatus, step: RunStatus) {
+  const currentIndex = statusSteps.findIndex((item) => item.value === current)
+  const stepIndex = statusSteps.findIndex((item) => item.value === step)
+  if (current === 'failed') return 'muted'
+  if (current === 'idle') return 'pending'
+  if (stepIndex < currentIndex || current === 'completed') return 'done'
+  if (step === current) return 'current'
+  return 'pending'
+}
 
 function App() {
   const [view, setView] = useState<View>('compose')
@@ -99,7 +120,7 @@ function App() {
       <aside className="sidebar">
         <div className="brand" aria-label="南郭先生们">
           <span className="brand-mark"><img src="/icons.png" alt="" /></span>
-          <span>南郭先生们</span>
+          <span><strong>南郭先生们</strong><small>Agent Studio</small></span>
         </div>
 
         <button className="new-project" type="button" onClick={() => window.location.reload()}>
@@ -114,6 +135,12 @@ function App() {
             <GitBranch size={17} /> 工作流
           </button>
         </nav>
+
+        <div className="sidebar-card">
+          <span>当前乐团</span>
+          <strong>{selectedPreset.label}</strong>
+          <small>{selectedPreset.description}</small>
+        </div>
 
         <div className="recent-projects">
           <div className="section-label">本地项目</div>
@@ -130,7 +157,7 @@ function App() {
         <header className="topbar">
           <div>
             <div className="eyebrow">MUSIC AGENT STUDIO</div>
-            <h1>{view === 'compose' ? '创作台' : '工作流'}</h1>
+            <h1>{view === 'compose' ? '音乐创作工作台' : '乐团工作流'}</h1>
           </div>
           <div className={`run-state ${status}`}>
             {busy ? <LoaderCircle className="spin" size={15} /> : <span className="status-dot" />}
@@ -142,14 +169,35 @@ function App() {
           <div className="compose-layout">
             <section className="brief-panel">
               <div className="panel-heading">
-                <div><span>01</span><h2>创作简报</h2></div>
+                <div><span>01</span><h2>创作输入</h2></div>
                 <SlidersHorizontal size={18} />
               </div>
 
-              <label className="field">
-                <span>作品名称</span>
-                <input value={title} maxLength={100} onChange={(event) => setTitle(event.target.value)} />
-              </label>
+              <div className="field-grid">
+                <label className="field">
+                  <span>作品名称</span>
+                  <input value={title} maxLength={100} onChange={(event) => setTitle(event.target.value)} />
+                </label>
+
+                <fieldset className="field">
+                  <legend>预设乐团</legend>
+                  <div className="select-wrap">
+                    <select value={preset} onChange={(event) => setPreset(event.target.value as Preset)}>
+                      {presetOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </fieldset>
+              </div>
+
+              <div className="preset-card">
+                <Sparkles size={16} />
+                <div>
+                  <strong>{selectedPreset.label}</strong>
+                  <span>{selectedPreset.description}</span>
+                </div>
+              </div>
 
               <label className="field grow">
                 <span>音乐构想</span>
@@ -162,18 +210,6 @@ function App() {
                 <small>{request.length} / 2000</small>
               </label>
 
-              <fieldset className="field">
-                <legend>预设乐团</legend>
-                <div className="select-wrap">
-                  <select value={preset} onChange={(event) => setPreset(event.target.value as Preset)}>
-                    {presetOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <p className="preset-help">{selectedPreset.description}</p>
-              </fieldset>
-
               <label className={`upload-zone ${audio ? 'has-file' : ''}`}>
                 <input
                   type="file"
@@ -181,8 +217,21 @@ function App() {
                   onChange={(event) => setAudio(event.target.files?.[0] ?? null)}
                 />
                 {audio ? <FileAudio size={22} /> : <Upload size={22} />}
-                <span>{audio ? audio.name : '添加参考音频'}</span>
+                <span>{audio ? audio.name : '参考音频'}</span>
                 <small>{audio ? `${(audio.size / 1024 / 1024).toFixed(1)} MB` : 'MP3, WAV, FLAC, M4A · 最大 20 MB'}</small>
+                {audio && (
+                  <button
+                    className="clear-file"
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setAudio(null)
+                    }}
+                    title="移除参考音频"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </label>
 
               <button className="run-button" type="button" disabled={!request.trim() || busy} onClick={handleRun}>
@@ -194,12 +243,38 @@ function App() {
 
             <section className="output-panel">
               <div className="panel-heading">
-                <div><span>02</span><h2>乐团工作区</h2></div>
+                <div><span>02</span><h2>乐团编排</h2></div>
                 <button className="icon-button" type="button" title="查看工作流" onClick={() => setView('workflow')}>
                   <GitBranch size={17} />
                 </button>
               </div>
               <div className="mini-flow"><WorkflowCanvas preset={preset} compact /></div>
+            </section>
+
+            <section className="status-panel">
+              <div className="panel-heading">
+                <div><span>03</span><h2>执行状态</h2></div>
+                {status === 'completed' ? <CheckCircle2 size={17} /> : <Clock3 size={17} />}
+              </div>
+              <div className="step-list">
+                {statusSteps.map((step) => (
+                  <div className={`step-item ${stepState(status, step.value)}`} key={step.value}>
+                    <span>{stepState(status, step.value) === 'done' ? <CheckCircle2 size={14} /> : <span />}</span>
+                    <strong>{step.label}</strong>
+                  </div>
+                ))}
+              </div>
+              <div className="run-summary">
+                <span>状态</span>
+                <strong>{statusCopy[status]}</strong>
+              </div>
+            </section>
+
+            <section className="result-panel">
+              <div className="panel-heading">
+                <div><span>04</span><h2>作品输出</h2></div>
+                <Waves size={18} />
+              </div>
               <div className="result-area">
                 {finalPrompt ? (
                   <>
