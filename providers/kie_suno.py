@@ -13,6 +13,32 @@ class ProviderError(RuntimeError):
     pass
 
 
+FAILED_STATUSES = {
+    "CREATE_TASK_FAILED",
+    "GENERATE_AUDIO_FAILED",
+    "CALLBACK_EXCEPTION",
+    "SENSITIVE_WORD_ERROR",
+}
+
+PROMPT_LIMITS = {
+    "V4": 3000,
+    "V4_5": 5000,
+    "V4_5PLUS": 5000,
+    "V4_5ALL": 5000,
+    "V5": 5000,
+    "V5_5": 5000,
+}
+
+STYLE_LIMITS = {
+    "V4": 200,
+    "V4_5": 1000,
+    "V4_5PLUS": 1000,
+    "V4_5ALL": 1000,
+    "V5": 1000,
+    "V5_5": 1000,
+}
+
+
 class KieSunoProvider:
     def __init__(
         self,
@@ -24,6 +50,7 @@ class KieSunoProvider:
         if not self.api_key:
             raise ValueError("KIE_API_KEY is required to generate music")
         self.base_url = (base_url or os.getenv("KIE_BASE_URL", "https://api.kie.ai")).rstrip("/")
+        self.model = os.getenv("KIE_MODEL", "V4")
         self._owns_client = client is None
         self.client = client or httpx.AsyncClient(timeout=120)
 
@@ -33,24 +60,71 @@ class KieSunoProvider:
         output_dir: Path | str = "works",
         *,
         instrumental: bool = False,
+        style: str | None = None,
+        title: str | None = None,
     ) -> list[GeneratedTrack]:
-        task_id = await self.submit(prompt, instrumental=instrumental)
+        task_id = await self.submit(
+            prompt,
+            instrumental=instrumental,
+            style=style,
+            title=title,
+        )
         task = await self.wait(task_id)
         tracks = self.extract_tracks(task)
         if not tracks:
             raise ProviderError("Generation completed without audio tracks")
         return await self.download_tracks(tracks, output_dir)
 
-    async def submit(self, prompt: str, *, instrumental: bool = False) -> str:
+    async def submit(
+        self,
+        prompt: str,
+        *,
+        instrumental: bool = False,
+        style: str | None = None,
+        title: str | None = None,
+        custom_mode: bool | None = None,
+        callback_url: str | None = None,
+        negative_tags: str | None = None,
+        vocal_gender: str | None = None,
+        style_weight: float | None = None,
+        weirdness_constraint: float | None = None,
+        audio_weight: float | None = None,
+        persona_id: str | None = None,
+        persona_model: str | None = None,
+    ) -> str:
+        model = self._validated_model()
+        use_custom_mode = instrumental if custom_mode is None else custom_mode
+        callback_url = callback_url or os.getenv("KIE_CALLBACK_URL")
+        if not callback_url:
+            raise ProviderError(
+                "KIE_CALLBACK_URL is required by Kie Suno generate API; "
+                "set it to a public endpoint that accepts generation callbacks"
+            )
+
         payload = {
             "prompt": prompt,
-            "customMode": False,
+            "customMode": use_custom_mode,
             "instrumental": instrumental,
-            "model": os.getenv("KIE_MODEL", "V4"),
+            "model": model,
+            "callBackUrl": callback_url,
         }
-        callback_url = os.getenv("KIE_CALLBACK_URL")
-        if callback_url:
-            payload["callBackUrl"] = callback_url
+        if use_custom_mode:
+            payload["style"] = (style or os.getenv("KIE_STYLE", "")).strip()
+            payload["title"] = (title or os.getenv("KIE_TITLE") or self.default_title(prompt)).strip()
+            self._validate_custom_payload(payload, model, instrumental)
+            self._add_optional_custom_fields(
+                payload,
+                negative_tags=negative_tags,
+                vocal_gender=vocal_gender,
+                style_weight=style_weight,
+                weirdness_constraint=weirdness_constraint,
+                audio_weight=audio_weight,
+                persona_id=persona_id,
+                persona_model=persona_model,
+            )
+        elif len(prompt) > 500:
+            raise ProviderError("Kie Suno non-custom mode prompt exceeds 500 characters")
+
         data = await self._request_json("POST", "/api/v1/generate", json=payload)
         try:
             return data["data"]["taskId"]
@@ -72,11 +146,12 @@ class KieSunoProvider:
         started_at = time.monotonic()
         while True:
             task = await self.get_task(task_id)
-            task_status = str(task.get("status", "")).lower()
-            if task_status == "success":
+            task_status = str(task.get("status", "")).upper()
+            if task_status == "SUCCESS":
                 return task
-            if task_status == "fail":
-                raise ProviderError(f"Music generation failed: {task}")
+            if task_status in FAILED_STATUSES:
+                reason = task.get("errorMessage") or task.get("errorCode") or task
+                raise ProviderError(f"Music generation failed at {task_status}: {reason}")
             elapsed = time.monotonic() - started_at
             if elapsed > timeout_seconds:
                 raise TimeoutError(f"Music generation timed out: {task_id}")
@@ -144,3 +219,69 @@ class KieSunoProvider:
         if elapsed < 120:
             return 8
         return 20
+
+    def _validated_model(self) -> str:
+        if self.model not in PROMPT_LIMITS:
+            choices = ", ".join(PROMPT_LIMITS)
+            raise ProviderError(f"Unsupported KIE_MODEL {self.model!r}; expected one of {choices}")
+        return self.model
+
+    @staticmethod
+    def _validate_custom_payload(payload: dict, model: str, instrumental: bool) -> None:
+        title = str(payload.get("title") or "")
+        style = str(payload.get("style") or "")
+        prompt = str(payload.get("prompt") or "")
+        if not style:
+            raise ProviderError("Kie Suno custom mode requires style; set KIE_STYLE or pass style")
+        if not title:
+            raise ProviderError("Kie Suno custom mode requires title; set KIE_TITLE or pass title")
+        if len(title) > 80:
+            raise ProviderError("Kie Suno title exceeds 80 characters")
+        if len(style) > STYLE_LIMITS[model]:
+            raise ProviderError(f"Kie Suno style exceeds {STYLE_LIMITS[model]} characters for {model}")
+        if not instrumental and not prompt:
+            raise ProviderError("Kie Suno custom vocal mode requires prompt lyrics")
+        if len(prompt) > PROMPT_LIMITS[model]:
+            raise ProviderError(f"Kie Suno prompt exceeds {PROMPT_LIMITS[model]} characters for {model}")
+
+    @staticmethod
+    def _add_optional_custom_fields(
+        payload: dict,
+        *,
+        negative_tags: str | None,
+        vocal_gender: str | None,
+        style_weight: float | None,
+        weirdness_constraint: float | None,
+        audio_weight: float | None,
+        persona_id: str | None,
+        persona_model: str | None,
+    ) -> None:
+        if negative_tags:
+            payload["negativeTags"] = negative_tags
+        if vocal_gender:
+            if vocal_gender not in {"m", "f"}:
+                raise ProviderError("Kie Suno vocalGender must be 'm' or 'f'")
+            payload["vocalGender"] = vocal_gender
+        for field, value in (
+            ("styleWeight", style_weight),
+            ("weirdnessConstraint", weirdness_constraint),
+            ("audioWeight", audio_weight),
+        ):
+            if value is None:
+                continue
+            if value < 0 or value > 1:
+                raise ProviderError(f"Kie Suno {field} must be between 0 and 1")
+            payload[field] = round(value, 2)
+        if persona_id:
+            payload["personaId"] = persona_id
+        if persona_model:
+            if persona_model not in {"style_persona", "voice_persona"}:
+                raise ProviderError(
+                    "Kie Suno personaModel must be 'style_persona' or 'voice_persona'"
+                )
+            payload["personaModel"] = persona_model
+
+    @staticmethod
+    def default_title(prompt: str) -> str:
+        title = re.sub(r"\s+", " ", prompt).strip()
+        return title[:80] or "Generated Music"

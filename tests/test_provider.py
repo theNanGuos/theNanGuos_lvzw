@@ -6,9 +6,16 @@ import pytest
 from providers.kie_suno import KieSunoProvider, ProviderError
 
 
+@pytest.fixture(autouse=True)
+def clean_kie_env(monkeypatch):
+    for name in ("KIE_MODEL", "KIE_CALLBACK_URL", "KIE_STYLE", "KIE_TITLE"):
+        monkeypatch.delenv(name, raising=False)
+
+
 @pytest.mark.asyncio
-async def test_kie_provider_generates_and_downloads_tracks(tmp_path):
+async def test_kie_provider_generates_and_downloads_tracks(tmp_path, monkeypatch):
     requests = []
+    monkeypatch.setenv("KIE_CALLBACK_URL", "https://app.test/kie/callback")
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
@@ -20,7 +27,7 @@ async def test_kie_provider_generates_and_downloads_tracks(tmp_path):
                 json={
                     "code": 200,
                     "data": {
-                        "status": "success",
+                        "status": "SUCCESS",
                         "response": {
                             "sunoData": [
                                 {"title": "夜/曲", "audioUrl": "https://audio.test/one"},
@@ -41,12 +48,23 @@ async def test_kie_provider_generates_and_downloads_tracks(tmp_path):
         client=client,
     )
 
-    tracks = await provider.generate("instrumental prompt", tmp_path, instrumental=True)
+    tracks = await provider.generate(
+        "instrumental prompt",
+        tmp_path,
+        instrumental=True,
+        style="Classical",
+        title="Night Song",
+    )
 
     assert [track.local_path.name for track in tracks] == ["夜-曲.mp3", "夜-曲-2.mp3"]
     assert all(track.local_path.read_bytes() == b"mp3 data" for track in tracks)
     submit_payload = json.loads(requests[0].content)
+    assert submit_payload["customMode"] is True
     assert submit_payload["instrumental"] is True
+    assert submit_payload["model"] == "V4"
+    assert submit_payload["callBackUrl"] == "https://app.test/kie/callback"
+    assert submit_payload["style"] == "Classical"
+    assert submit_payload["title"] == "Night Song"
     assert requests[0].headers["Authorization"] == "Bearer test-key"
     await client.aclose()
 
@@ -60,6 +78,68 @@ async def test_kie_provider_reports_api_errors():
     provider = KieSunoProvider(api_key="bad-key", client=client)
 
     with pytest.raises(ProviderError, match="invalid key"):
-        await provider.submit("prompt")
+        await provider.submit("prompt", callback_url="https://app.test/kie/callback")
+
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_kie_provider_non_custom_payload_leaves_custom_fields_empty():
+    requests = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"code": 200, "data": {"taskId": "task-1"}})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    provider = KieSunoProvider(api_key="test-key", client=client)
+
+    task_id = await provider.submit(
+        "short song idea",
+        callback_url="https://app.test/kie/callback",
+    )
+
+    assert task_id == "task-1"
+    submit_payload = json.loads(requests[0].content)
+    assert submit_payload == {
+        "prompt": "short song idea",
+        "customMode": False,
+        "instrumental": False,
+        "model": "V4",
+        "callBackUrl": "https://app.test/kie/callback",
+    }
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_kie_provider_requires_callback_url():
+    client = httpx.AsyncClient(transport=httpx.MockTransport(lambda _: httpx.Response(500)))
+    provider = KieSunoProvider(api_key="test-key", client=client)
+
+    with pytest.raises(ProviderError, match="KIE_CALLBACK_URL"):
+        await provider.submit("short song idea")
+
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_kie_provider_reports_failed_task_status():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "code": 200,
+                "data": {
+                    "status": "SENSITIVE_WORD_ERROR",
+                    "errorMessage": "content filtered",
+                },
+            },
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    provider = KieSunoProvider(api_key="test-key", client=client)
+
+    with pytest.raises(ProviderError, match="SENSITIVE_WORD_ERROR"):
+        await provider.wait("task-1")
 
     await client.aclose()

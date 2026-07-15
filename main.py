@@ -19,6 +19,12 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def brief_value(brief: object, field: str, default: object = None) -> object:
+    if isinstance(brief, dict):
+        return brief.get(field, default)
+    return getattr(brief, field, default)
+
+
 def main() -> None:
     args = parse_args()
     result = build_graph(create_llm()).invoke({"user_request": args.request})
@@ -28,9 +34,24 @@ def main() -> None:
     if args.generate:
         from lib.suno import generate
 
+        brief = result.get("creative_brief")
+        style_parts = []
+        title = None
+        if brief:
+            title = brief_value(brief, "title")
+            style_parts.extend(
+                [
+                    brief_value(brief, "genre", ""),
+                    brief_value(brief, "production_style", ""),
+                ]
+            )
+            style_parts.extend(brief_value(brief, "mood", []) or [])
+
         generate(
             final_prompt,
             instrumental=result["workflow"] == "classical_instrumental",
+            style=", ".join(str(part) for part in style_parts if part),
+            title=str(title) if title else None,
         )
 
 

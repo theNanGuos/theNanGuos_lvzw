@@ -12,6 +12,8 @@ async def generate_async(
     output_dir: Path | str = "works",
     *,
     instrumental: bool = False,
+    style: str | None = None,
+    title: str | None = None,
 ) -> list[GeneratedTrack]:
     load_dotenv()
     provider = KieSunoProvider()
@@ -20,6 +22,8 @@ async def generate_async(
             prompt,
             output_dir,
             instrumental=instrumental,
+            style=style,
+            title=title,
         )
     finally:
         await provider.aclose()
@@ -30,7 +34,15 @@ def generate(
     output_dir: Path | str = "works",
     *,
     instrumental: bool = False,
+    style: str | None = None,
+    title: str | None = None,
 ) -> list[GeneratedTrack]:
     return asyncio.run(
-        generate_async(prompt, output_dir, instrumental=instrumental)
+        generate_async(
+            prompt,
+            output_dir,
+            instrumental=instrumental,
+            style=style,
+            title=title,
+        )
     )

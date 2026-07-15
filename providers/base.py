@@ -17,4 +17,6 @@ class MusicGenerationProvider(Protocol):
         output_dir: Path | str,
         *,
         instrumental: bool = False,
+        style: str | None = None,
+        title: str | None = None,
     ) -> list[GeneratedTrack]: ...
