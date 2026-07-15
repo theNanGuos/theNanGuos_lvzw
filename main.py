@@ -2,6 +2,9 @@ import argparse
 
 from agents.init import create_llm
 from app.graph import build_graph
+from lib.logging_config import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -26,10 +29,13 @@ def brief_value(brief: object, field: str, default: object = None) -> object:
 
 
 def main() -> None:
+    setup_logging("cli")
     args = parse_args()
+    logger.info("cli_workflow_started generate=%s", args.generate)
     result = build_graph(create_llm()).invoke({"user_request": args.request})
     final_prompt = result["final_prompt"]
     print(final_prompt)
+    logger.info("cli_workflow_completed workflow=%s", result.get("workflow"))
 
     if args.generate:
         from lib.suno import generate
@@ -53,6 +59,7 @@ def main() -> None:
             style=", ".join(str(part) for part in style_parts if part),
             title=str(title) if title else None,
         )
+        logger.info("cli_music_generation_completed")
 
 
 if __name__ == "__main__":

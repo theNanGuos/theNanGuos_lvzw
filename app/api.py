@@ -8,10 +8,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from agents.init import create_llm
 from app.graph import build_graph
 from app.storage import LocalProjectStore, ProjectNotFoundError
+from lib.logging_config import get_logger, log_context, setup_logging
 from models.project import Asset, Project, ProjectCreate, RunResult
 
 MAX_UPLOAD_SIZE = 20 * 1024 * 1024
 ALLOWED_AUDIO_SUFFIXES = {".mp3", ".wav", ".flac", ".m4a", ".ogg"}
+logger = get_logger(__name__)
 
 
 class WorkflowRunner(Protocol):
@@ -22,6 +24,7 @@ def create_app(
     store: LocalProjectStore | None = None,
     runner_factory: Callable[[], WorkflowRunner] | None = None,
 ) -> FastAPI:
+    setup_logging("api")
     app = FastAPI(title="theNanGuos", version="0.1.0")
     app.add_middleware(
         CORSMiddleware,
@@ -49,7 +52,9 @@ def create_app(
 
     @app.post("/api/projects", response_model=Project, status_code=status.HTTP_201_CREATED)
     def create_project(payload: ProjectCreate) -> Project:
-        return project_store.create_project(payload)
+        project = project_store.create_project(payload)
+        logger.info("project_created title=%s preset=%s", project.title, project.preset)
+        return project
 
     @app.get("/api/projects/{project_id}", response_model=Project)
     def read_project(project_id: str) -> Project:
@@ -67,12 +72,20 @@ def create_app(
         content = await file.read(MAX_UPLOAD_SIZE + 1)
         if len(content) > MAX_UPLOAD_SIZE:
             raise HTTPException(status_code=413, detail="Audio file exceeds 20 MB")
-        return project_store.add_asset(
+        asset = project_store.add_asset(
             project_id,
             filename,
             file.content_type or "application/octet-stream",
             content,
         )
+        with log_context(project_id=project_id, stage="asset_upload"):
+            logger.info(
+                "asset_uploaded filename=%s content_type=%s size=%s",
+                asset.filename,
+                asset.content_type,
+                asset.size,
+            )
+        return asset
 
     @app.post("/api/projects/{project_id}/runs", response_model=RunResult)
     def run_project(project_id: str) -> RunResult:
@@ -80,21 +93,27 @@ def create_app(
         project = get_project(project_id)
         project.status = "running"
         project_store.save_project(project)
-        try:
-            runner = runner or make_runner()
-            result = runner.invoke(
-                {
-                    "user_request": project.user_request,
-                    "preset": project.preset,
-                    "artifact_dir": str(project_store.artifact_dir(project_id)),
-                }
-            )
-            return project_store.save_run(project_id, result)
-        except Exception as exc:
-            project.status = "failed"
-            project.error = str(exc)
-            project_store.save_project(project)
-            raise HTTPException(status_code=500, detail=f"Workflow failed: {exc}") from exc
+        with log_context(project_id=project_id, stage="workflow"):
+            logger.info("workflow_started preset=%s", project.preset)
+            try:
+                runner = runner or make_runner()
+                result = runner.invoke(
+                    {
+                        "user_request": project.user_request,
+                        "preset": project.preset,
+                        "artifact_dir": str(project_store.artifact_dir(project_id)),
+                    }
+                )
+                run = project_store.save_run(project_id, result)
+                with log_context(project_id=project_id, run_id=run.id, stage="workflow"):
+                    logger.info("workflow_completed")
+                return run
+            except Exception as exc:
+                project.status = "failed"
+                project.error = str(exc)
+                project_store.save_project(project)
+                logger.exception("workflow_failed")
+                raise HTTPException(status_code=500, detail=f"Workflow failed: {exc}") from exc
 
     @app.get(
         "/api/projects/{project_id}/runs/{run_id}",

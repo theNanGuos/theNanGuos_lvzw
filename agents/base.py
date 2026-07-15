@@ -8,9 +8,11 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel
 
+from lib.logging_config import get_logger, log_context
 from models.state import State
 
 STRUCTURED_OUTPUT_METHODS = {"prompt_json", "json_mode", "function_calling", "json_schema"}
+logger = get_logger(__name__)
 
 
 def _json_value(value: object) -> object:
@@ -95,26 +97,36 @@ class Agent(ABC):
         ]
         method = _structured_output_method()
         try:
-            if method in {"prompt_json", "json_mode"}:
-                raw_response = self.llm.invoke(messages)
-                response = _extract_json_object(_message_text(raw_response))
-            else:
-                try:
-                    runner = self.llm.with_structured_output(
-                        self.output_schema,
-                        method=method,
-                    )
-                except TypeError:
-                    runner = self.llm.with_structured_output(self.output_schema)
-                response = runner.invoke(messages)
-            if not isinstance(response, self.output_schema):
-                response = self.output_schema.model_validate(response)
+            with log_context(stage=self.name):
+                logger.info(
+                    "agent_started name=%s method=%s input_fields=%s",
+                    self.name,
+                    method,
+                    ",".join(payload),
+                )
+                if method in {"prompt_json", "json_mode"}:
+                    raw_response = self.llm.invoke(messages)
+                    response = _extract_json_object(_message_text(raw_response))
+                else:
+                    try:
+                        runner = self.llm.with_structured_output(
+                            self.output_schema,
+                            method=method,
+                        )
+                    except TypeError:
+                        runner = self.llm.with_structured_output(self.output_schema)
+                    response = runner.invoke(messages)
+                if not isinstance(response, self.output_schema):
+                    response = self.output_schema.model_validate(response)
+                logger.info("agent_completed name=%s", self.name)
         except Exception as exc:
             fallback = self.fallback(state, exc)
             if fallback is None:
+                logger.exception("agent_failed name=%s", self.name)
                 raise RuntimeError(
                     f"{self.name} failed to produce valid structured output: {exc}"
                 ) from exc
+            logger.warning("agent_fallback_used name=%s reason=%s", self.name, exc)
             response = fallback
         return {
             field: getattr(response, field)

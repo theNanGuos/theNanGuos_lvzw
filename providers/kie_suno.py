@@ -6,6 +6,7 @@ from pathlib import Path
 
 import httpx
 
+from lib.logging_config import get_logger, log_context
 from providers.base import GeneratedTrack
 
 
@@ -37,6 +38,7 @@ STYLE_LIMITS = {
     "V5": 1000,
     "V5_5": 1000,
 }
+logger = get_logger(__name__)
 
 
 class KieSunoProvider:
@@ -63,17 +65,27 @@ class KieSunoProvider:
         style: str | None = None,
         title: str | None = None,
     ) -> list[GeneratedTrack]:
+        logger.info(
+            "music_generation_started instrumental=%s prompt_length=%s output_dir=%s",
+            instrumental,
+            len(prompt),
+            output_dir,
+        )
         task_id = await self.submit(
             prompt,
             instrumental=instrumental,
             style=style,
             title=title,
         )
-        task = await self.wait(task_id)
-        tracks = self.extract_tracks(task)
-        if not tracks:
-            raise ProviderError("Generation completed without audio tracks")
-        return await self.download_tracks(tracks, output_dir)
+        with log_context(run_id=task_id, stage="music_generation"):
+            task = await self.wait(task_id)
+            tracks = self.extract_tracks(task)
+            if not tracks:
+                logger.error("music_generation_no_tracks")
+                raise ProviderError("Generation completed without audio tracks")
+            downloaded = await self.download_tracks(tracks, output_dir)
+            logger.info("music_generation_completed tracks=%s", len(downloaded))
+            return downloaded
 
     async def submit(
         self,
@@ -125,10 +137,20 @@ class KieSunoProvider:
         elif len(prompt) > 500:
             raise ProviderError("Kie Suno non-custom mode prompt exceeds 500 characters")
 
+        logger.info(
+            "music_task_submit model=%s custom_mode=%s instrumental=%s prompt_length=%s",
+            model,
+            use_custom_mode,
+            instrumental,
+            len(prompt),
+        )
         data = await self._request_json("POST", "/api/v1/generate", json=payload)
         try:
-            return data["data"]["taskId"]
+            task_id = data["data"]["taskId"]
+            logger.info("music_task_submitted task_id=%s", task_id)
+            return task_id
         except (KeyError, TypeError) as exc:
+            logger.exception("music_task_missing_task_id")
             raise ProviderError(f"Provider response does not contain taskId: {data}") from exc
 
     async def get_task(self, task_id: str) -> dict:
@@ -147,13 +169,16 @@ class KieSunoProvider:
         while True:
             task = await self.get_task(task_id)
             task_status = str(task.get("status", "")).upper()
+            logger.info("music_task_polled status=%s", task_status or "UNKNOWN")
             if task_status == "SUCCESS":
                 return task
             if task_status in FAILED_STATUSES:
                 reason = task.get("errorMessage") or task.get("errorCode") or task
+                logger.error("music_task_failed status=%s reason=%s", task_status, reason)
                 raise ProviderError(f"Music generation failed at {task_status}: {reason}")
             elapsed = time.monotonic() - started_at
             if elapsed > timeout_seconds:
+                logger.error("music_task_timeout task_id=%s", task_id)
                 raise TimeoutError(f"Music generation timed out: {task_id}")
             await asyncio.sleep(self.poll_interval(elapsed))
 
@@ -178,6 +203,7 @@ class KieSunoProvider:
             response = await self.client.get(url)
             response.raise_for_status()
             path.write_bytes(response.content)
+            logger.info("music_track_downloaded title=%s path=%s size=%s", title, path, len(response.content))
             results.append(GeneratedTrack(title=title, source_url=url, local_path=path))
         return results
 
@@ -195,6 +221,7 @@ class KieSunoProvider:
         response.raise_for_status()
         data = response.json()
         if data.get("code") != 200:
+            logger.error("provider_request_failed method=%s path=%s response=%s", method, path, data)
             raise ProviderError(f"Provider request failed: {data}")
         return data
 

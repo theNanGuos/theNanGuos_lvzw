@@ -8,4 +8,5 @@ __pycache__/
 
 ## local runtime data
 data/
+_logs/
 works/*.mp3

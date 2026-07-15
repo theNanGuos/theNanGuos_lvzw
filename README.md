@@ -45,6 +45,12 @@ KIE_CALLBACK_URL=https://your-public-host.example.com/kie/callback
 
 # 器乐 custom mode 未从工作流传入风格时使用
 KIE_STYLE=Classical
+
+# 可选：本地日志配置
+LOG_DIR=_logs
+LOG_LEVEL=INFO
+LOG_MAX_BYTES=5242880
+LOG_BACKUP_COUNT=5
 ```
 
 安装依赖并运行 CLI：
@@ -80,6 +86,7 @@ npm run dev
 ```
 
 项目元数据、上传音频和运行结果分别保存在 `data/projects/<project-id>/` 下的 `project.json`、`assets/` 和 `runs/` 中。
+运行日志默认写入 `_logs/`，包括 API 工作流阶段、Agent 结构化输出、KIE/Suno 提交和轮询状态，可通过上面的 `LOG_*` 环境变量调整。
 
 ## 测试
 
