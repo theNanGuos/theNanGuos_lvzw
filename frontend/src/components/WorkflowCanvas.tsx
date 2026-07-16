@@ -82,7 +82,7 @@ function graphForPreset(
     kind,
     agents[kind][0],
     agents[kind][1],
-    20 + index * 145,
+    20 + index * 132,
     index % 2 === 0 ? 58 : 128,
   ])
   const workflowFinished = ['demo_audio', 'music_generation', 'audio_analysis', 'completed'].includes(currentStage)
@@ -109,8 +109,8 @@ function graphForPreset(
     target: pipeline[index + 1],
     sourceHandle: 'right-source',
     targetHandle: 'left-target',
-    markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
-    style: { stroke: '#7b8a82', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#3f574c' },
+    style: { stroke: '#3f574c', strokeWidth: 2.8 },
   }))
   return { nodes, edges }
 }
@@ -133,6 +133,7 @@ export function WorkflowCanvas({
   return (
     <ReactFlow
       key={preset}
+      className="workflow-flow"
       nodes={graph.nodes}
       edges={graph.edges}
       nodeTypes={nodeTypes}

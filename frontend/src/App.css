@@ -978,16 +978,17 @@ button { letter-spacing: 0; }
 .workflow-toolbar h2 { font-size: 16px; margin: 0 0 4px; }
 .workflow-toolbar p { margin: 0; color: var(--muted); font-size: 12px; }
 .workflow-select { width: min(300px, 100%); }
-.full-flow { min-height: 0; }
+.full-flow { min-height: 0; background: #f1f5f2; }
+.workflow-flow .react-flow__pane { background: rgba(244, 247, 245, .72); }
 
 .agent-node {
   width: 188px;
   height: 68px;
   padding: 10px 12px;
-  border: 1px solid #aab5af;
+  border: 1.5px solid #65766d;
   border-radius: 12px;
-  background: white;
-  box-shadow: 0 10px 24px rgba(25, 38, 32, .09);
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(20, 38, 29, .15);
   display: flex;
   align-items: center;
   gap: 11px;
@@ -999,29 +1000,31 @@ button { letter-spacing: 0; }
   border-radius: 9px;
   display: grid;
   place-items: center;
-  background: #e8eeeb;
-  color: #40534a;
+  border: 1px solid rgba(36, 62, 49, .16);
+  background: #dfe8e3;
+  color: #243e31;
   flex: 0 0 auto;
 }
 
 .agent-node strong,
 .agent-node small { display: block; letter-spacing: 0; }
-.agent-node strong { font-size: 13px; color: #29322e; }
-.agent-node small { font-size: 11px; color: #7d8882; margin-top: 4px; }
+.agent-node strong { font-size: 14px; color: #17231d; font-weight: 850; }
+.agent-node small { font-size: 11px; color: #4d5e55; font-weight: 650; margin-top: 4px; }
 .agent-node.conductor > span { background: #f8e5df; color: var(--accent-dark); }
 .agent-node.rhythm > span { background: #edf0ff; color: #3f558f; }
 .agent-node.harmony > span { background: #f4ecff; color: #67448d; }
 .agent-node.sound > span { background: #e6f3f5; color: #2d6872; }
 .agent-node.review > span { background: #fff2df; color: #9b5d1c; }
 .agent-node.prompt > span { background: #dfeee8; color: var(--green); }
-.agent-node.queued { opacity: .62; box-shadow: none; }
-.agent-node.running { border-color: #527d69; box-shadow: 0 0 0 4px rgba(36, 116, 90, .12); }
+.agent-node.queued { border-color: #76877e; background: #fbfcfb; }
+.agent-node.running { border-color: #176b4c; background: #f2faf6; box-shadow: 0 0 0 4px rgba(23, 107, 76, .2), 0 10px 24px rgba(20, 60, 42, .2); }
 .agent-node.running > span { animation: node-pulse 1.4s ease-in-out infinite; }
-.agent-node.completed { border-color: #8eb5a4; background: #f5faf7; }
-.agent-node.failed { border-color: #c77c70; background: #fff7f5; }
-.react-flow__handle { width: 9px; height: 9px; background: #7c8982; border: 2px solid white; opacity: .75; }
-.react-flow__controls { box-shadow: none; border: 1px solid var(--line); }
-.react-flow__controls-button { border-bottom-color: var(--line); }
+.agent-node.completed { border-color: #347a5e; background: #eef8f3; box-shadow: 0 7px 18px rgba(31, 91, 65, .15); }
+.agent-node.failed { border-color: #a84336; background: #fff1ee; box-shadow: 0 7px 18px rgba(125, 47, 37, .15); }
+.react-flow__handle { width: 10px; height: 10px; background: #32483d; border: 2px solid white; opacity: 1; }
+.react-flow__edge-path { filter: drop-shadow(0 1px 0 rgba(255, 255, 255, .9)); }
+.react-flow__controls { overflow: hidden; box-shadow: 0 5px 14px rgba(24, 42, 33, .14); border: 1px solid #85978e; }
+.react-flow__controls-button { border-bottom-color: #b3c0ba; color: #2c4438; }
 
 @media (max-width: 1180px) {
   .compose-layout {
