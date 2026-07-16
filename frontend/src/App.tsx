@@ -613,6 +613,7 @@ function App() {
                 title="添加参考音频"
               >
                 <Paperclip size={18} />
+                <span>上传参考音频</span>
               </button>
               <textarea
                 value={chatInput}

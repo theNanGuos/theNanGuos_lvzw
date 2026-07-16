@@ -242,6 +242,7 @@ test('sends a chat prompt with a persisted audio attachment', async ({ page }) =
   })
 
   await page.goto('/')
+  await expect(page.getByRole('button', { name: '上传参考音频' })).toBeVisible()
   await page.locator('.chat-file-input').setInputFiles({
     name: 'reference-demo.wav',
     mimeType: 'audio/wav',
@@ -255,6 +256,10 @@ test('sends a chat prompt with a persisted audio attachment', async ({ page }) =
   await expect(page.locator('.chat-audio-attachment').getByText('reference-demo.wav')).toBeVisible()
   expect(sentAssetIds).toEqual(['audio-1'])
   await page.screenshot({ path: '/tmp/nanguos-chat-audio.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(page.getByRole('button', { name: '上传参考音频' })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  await page.screenshot({ path: '/tmp/nanguos-chat-audio-mobile.png', fullPage: true })
 })
 
 test('renders the portfolio as a cover-led music library', async ({ page }) => {

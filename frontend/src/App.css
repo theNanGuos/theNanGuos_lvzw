@@ -339,12 +339,12 @@ button { letter-spacing: 0; }
 .chat-track-content audio { width: 100%; height: 34px; }
 .chat-track-waveform { width: 100%; height: 52px; border: 1px solid var(--line); border-radius: 5px; object-fit: cover; background: white; }
 .chat-error { margin: 0 24px 12px; color: #a3382e; font-size: 12px; }
-.chat-composer { margin: 0 24px 24px; min-height: 76px; border: 1px solid #bfcac4; border-radius: 8px; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: end; background: #fbfcfb; }
+.chat-composer { margin: 0 24px 24px; min-height: 76px; border: 1px solid #bfcac4; border-radius: 8px; display: grid; grid-template-columns: auto minmax(0, 1fr) 44px; align-items: end; background: #fbfcfb; }
 .chat-composer:focus-within { border-color: #547765; box-shadow: 0 0 0 4px rgba(36, 116, 90, .1); }
 .chat-composer textarea { min-height: 74px; max-height: 150px; padding: 13px; border: 0; outline: 0; resize: none; background: transparent; font-size: 14px; line-height: 1.55; }
 .chat-composer > button { width: 34px; height: 34px; margin: 0 8px 8px 0; border: 0; border-radius: 7px; background: var(--accent); color: white; display: grid; place-items: center; cursor: pointer; }
 .chat-composer > button:disabled { opacity: .4; cursor: not-allowed; }
-.chat-composer > .chat-attach-button { margin: 0 0 8px 8px; background: transparent; color: #62736b; }
+.chat-composer > .chat-attach-button { width: auto; padding: 0 9px; margin: 0 0 8px 8px; background: transparent; color: #62736b; display: inline-flex; gap: 6px; font-size: 12px; font-weight: 800; white-space: nowrap; }
 .chat-composer > .chat-attach-button:hover { background: #edf3f0; color: var(--green); }
 .chat-file-input { display: none; }
 .chat-file-chip { grid-column: 1 / -1; min-width: 0; margin: 9px 10px 0; padding: 7px 8px; border: 1px solid #c8d9d1; border-radius: 6px; background: #f2f8f5; color: #496357; display: grid; grid-template-columns: 18px minmax(0, 1fr) 24px; align-items: center; gap: 6px; }
@@ -1044,7 +1044,8 @@ button { letter-spacing: 0; }
   .chat-run-canvas { height: 210px; }
   .chat-track { grid-template-columns: 70px minmax(0, 1fr); }
   .chat-track > img, .chat-track-cover { width: 70px; height: 70px; }
-  .chat-composer { margin: 0 16px 16px; }
+  .chat-composer { margin: 0 16px 16px; grid-template-columns: minmax(0, 1fr) 44px; }
+  .chat-composer > .chat-attach-button { grid-column: 1 / -1; justify-self: start; margin-top: 7px; }
   .session-drawer { grid-template-columns: minmax(0, 1fr) 52px; }
   .portfolio-page { min-height: auto; padding-bottom: 130px; }
   .portfolio-titlebar { align-items: stretch; flex-direction: column; gap: 14px; padding-bottom: 18px; }
