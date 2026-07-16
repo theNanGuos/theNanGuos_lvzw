@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AudioLines,
   CheckCircle2,
@@ -9,6 +9,7 @@ import {
   FileAudio,
   GitBranch,
   Headphones,
+  History,
   LoaderCircle,
   Library,
   MessageSquare,
@@ -24,15 +25,22 @@ import {
 import {
   createProject,
   createSession,
+  deleteSession,
+  getProject,
   getRun,
+  getSession,
   listPortfolio,
+  listSessions,
   mediaUrl,
+  renameSession,
   runProjectAsync,
   sendChatMessage,
   uploadAsset,
 } from './api'
 import type {
   ChatMessage,
+  ChatSession,
+  ChatSessionSummary,
   DemoAudio,
   GeneratedAudioAnalysis,
   GeneratedTrack,
@@ -42,6 +50,7 @@ import type {
 } from './api'
 import { WorkflowCanvas } from './components/WorkflowCanvas'
 import { PortfolioView } from './components/PortfolioView'
+import { SessionList } from './components/SessionList'
 import './App.css'
 
 type View = 'chat' | 'compose' | 'portfolio' | 'workflow'
@@ -81,6 +90,17 @@ function stepState(current: RunStatus, step: RunStatus) {
   return 'pending'
 }
 
+function sessionSummary(session: ChatSession): ChatSessionSummary {
+  return {
+    id: session.id,
+    title: session.title,
+    active_project_id: session.active_project_id,
+    message_count: session.messages.length,
+    created_at: session.created_at,
+    updated_at: session.updated_at,
+  }
+}
+
 function App() {
   const [view, setView] = useState<View>('chat')
   const [title, setTitle] = useState('未命名作品')
@@ -97,6 +117,10 @@ function App() {
   const [chatInput, setChatInput] = useState('')
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatSending, setChatSending] = useState(false)
+  const [chatSessions, setChatSessions] = useState<ChatSessionSummary[]>([])
+  const [mobileSessionsOpen, setMobileSessionsOpen] = useState(false)
+  const monitorVersion = useRef(0)
+  const sessionSelectionVersion = useRef(0)
 
   const busy = ['creating', 'uploading', 'running'].includes(status)
   const finalPrompt = useMemo(
@@ -117,9 +141,17 @@ function App() {
   )
   const selectedPreset = presetOptions.find((option) => option.value === preset) ?? presetOptions[0]
 
+  // Initialization intentionally runs once; URL history changes reload persisted state.
+  /* oxlint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     void refreshPortfolio()
+    void initializeSessions()
+
+    const handleHistoryChange = () => window.location.reload()
+    window.addEventListener('popstate', handleHistoryChange)
+    return () => window.removeEventListener('popstate', handleHistoryChange)
   }, [])
+  /* oxlint-enable react-hooks/exhaustive-deps */
 
   const hasRunningPortfolioItem = portfolio.some((item) => item.status === 'running')
   useEffect(() => {
@@ -136,10 +168,146 @@ function App() {
     }
   }
 
+  async function refreshSessions() {
+    const sessions = await listSessions()
+    setChatSessions(sessions)
+    return sessions
+  }
+
+  async function initializeSessions() {
+    try {
+      const sessions = await refreshSessions()
+      const params = new URLSearchParams(window.location.search)
+      const requestedId = params.get('session') || window.localStorage.getItem('nanguos.session')
+      const session = sessions.find((item) => item.id === requestedId) || sessions[0]
+      if (session) await selectSession(session.id, false)
+    } catch {
+      // A new local conversation can still be started when session restoration fails.
+    }
+  }
+
+  function updateSessionLocation(nextSessionId: string, push: boolean) {
+    const url = new URL(window.location.href)
+    if (nextSessionId) {
+      url.searchParams.set('session', nextSessionId)
+      window.localStorage.setItem('nanguos.session', nextSessionId)
+    } else {
+      url.searchParams.delete('session')
+      window.localStorage.removeItem('nanguos.session')
+    }
+    window.history[push ? 'pushState' : 'replaceState']({}, '', url)
+  }
+
+  function resetProjectState() {
+    setTitle('未命名作品')
+    setRequest('')
+    setPreset('auto')
+    setStatus('idle')
+    setProgress(0)
+    setCurrentStage('draft')
+    setResult(null)
+    setError('')
+  }
+
+  async function restoreSessionProject(projectId: string, selectionVersion: number) {
+    try {
+      const project = await getProject(projectId)
+      if (selectionVersion !== sessionSelectionVersion.current) return
+      setTitle(project.title)
+      setRequest(project.user_request)
+      setPreset(project.preset)
+      setProgress(project.progress)
+      setCurrentStage(project.current_stage)
+      setStatus(project.status === 'draft' ? 'idle' : project.status)
+      setError(project.error || '')
+      if (!project.latest_run_id) return
+      if (project.status === 'running') {
+        void monitorRun(project.id, project.latest_run_id).catch((reason) => {
+          setError(reason instanceof Error ? reason.message : '作品状态恢复失败')
+          setStatus('failed')
+        })
+      } else {
+        const run = await getRun(project.id, project.latest_run_id)
+        if (selectionVersion === sessionSelectionVersion.current) setResult(run)
+      }
+    } catch (reason) {
+      if (selectionVersion !== sessionSelectionVersion.current) return
+      setError(reason instanceof Error ? reason.message : '关联作品读取失败')
+    }
+  }
+
+  async function selectSession(nextSessionId: string, push = true) {
+    if (chatSending) return
+    const selectionVersion = ++sessionSelectionVersion.current
+    monitorVersion.current += 1
+    const session = await getSession(nextSessionId)
+    if (selectionVersion !== sessionSelectionVersion.current) return
+    setSessionId(session.id)
+    setChatMessages(session.messages)
+    setChatInput('')
+    setView('chat')
+    setMobileSessionsOpen(false)
+    resetProjectState()
+    updateSessionLocation(session.id, push)
+    if (session.active_project_id) {
+      await restoreSessionProject(session.active_project_id, selectionVersion)
+    }
+  }
+
+  async function handleSelectSession(nextSessionId: string) {
+    try {
+      await selectSession(nextSessionId)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '会话读取失败')
+    }
+  }
+
+  function startNewConversation(push = true) {
+    if (chatSending) return
+    sessionSelectionVersion.current += 1
+    monitorVersion.current += 1
+    setSessionId('')
+    setChatMessages([])
+    setChatInput('')
+    setView('chat')
+    setMobileSessionsOpen(false)
+    resetProjectState()
+    updateSessionLocation('', push)
+  }
+
+  async function handleRenameSession(targetSessionId: string, nextTitle: string) {
+    try {
+      const updated = await renameSession(targetSessionId, nextTitle)
+      setChatSessions((sessions) => sessions.map((item) => (
+        item.id === updated.id
+          ? { ...item, title: updated.title, updated_at: updated.updated_at }
+          : item
+      )))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '会话重命名失败')
+      throw reason
+    }
+  }
+
+  async function handleDeleteSession(targetSessionId: string) {
+    try {
+      await deleteSession(targetSessionId)
+      const remaining = await refreshSessions()
+      if (targetSessionId !== sessionId) return
+      if (remaining[0]) await selectSession(remaining[0].id, false)
+      else startNewConversation(false)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '会话删除失败')
+      throw reason
+    }
+  }
+
   async function monitorRun(projectId: string, runId: string) {
+    const version = ++monitorVersion.current
     setStatus('running')
     for (;;) {
       const run = await getRun(projectId, runId)
+      if (version !== monitorVersion.current) return
       setProgress(run.progress)
       setCurrentStage(run.current_stage)
       if (run.status === 'completed') {
@@ -157,6 +325,7 @@ function App() {
 
   async function handleRun() {
     if (!request.trim() || busy) return
+    monitorVersion.current += 1
     setError('')
     setResult(null)
     try {
@@ -199,9 +368,15 @@ function App() {
         const session = await createSession(content.slice(0, 36))
         activeSessionId = session.id
         setSessionId(session.id)
+        setChatSessions((sessions) => [sessionSummary(session), ...sessions])
+        updateSessionLocation(session.id, true)
       }
       const response = await sendChatMessage(activeSessionId, content)
       setChatMessages(response.session.messages)
+      setChatSessions((sessions) => [
+        sessionSummary(response.session),
+        ...sessions.filter((item) => item.id !== response.session.id),
+      ])
       if (response.project_id) {
         const item = (await listPortfolio()).find((entry) => entry.project_id === response.project_id)
         if (item) {
@@ -213,6 +388,7 @@ function App() {
         }
       }
       await refreshPortfolio()
+      await refreshSessions()
       if (response.project_id && response.run_id) {
         setChatSending(false)
         await monitorRun(response.project_id, response.run_id)
@@ -226,6 +402,7 @@ function App() {
   }
 
   async function openPortfolioItem(item: PortfolioItem) {
+    monitorVersion.current += 1
     setTitle(item.title)
     setRequest(item.user_request)
     setPreset(item.preset)
@@ -256,8 +433,12 @@ function App() {
           <span><strong>南郭先生们</strong><small>Agent Studio</small></span>
         </div>
 
-        <button className="new-project" type="button" onClick={() => window.location.reload()}>
-          <Plus size={16} /> 新建作品
+        <button
+          className="new-project"
+          type="button"
+          onClick={() => view === 'chat' ? startNewConversation() : window.location.reload()}
+        >
+          <Plus size={16} /> {view === 'chat' ? '新建对话' : '新建作品'}
         </button>
 
         <nav className="side-nav" aria-label="工作区导航">
@@ -275,14 +456,44 @@ function App() {
           </button>
         </nav>
 
-        <div className="sidebar-card">
-          <span>当前乐团</span>
-          <strong>{selectedPreset.label}</strong>
-          <small>{selectedPreset.description}</small>
-        </div>
+        {view === 'chat' ? (
+          <SessionList
+            sessions={chatSessions}
+            activeSessionId={sessionId}
+            disabled={chatSending}
+            onNew={() => startNewConversation()}
+            onSelect={(id) => void handleSelectSession(id)}
+            onRename={handleRenameSession}
+            onDelete={handleDeleteSession}
+          />
+        ) : (
+          <div className="sidebar-card">
+            <span>当前乐团</span>
+            <strong>{selectedPreset.label}</strong>
+            <small>{selectedPreset.description}</small>
+          </div>
+        )}
 
         <div className="local-badge"><CircleStop size={13} /> Local workspace</div>
       </aside>
+
+      {mobileSessionsOpen && (
+        <div className="session-drawer" role="dialog" aria-modal="true" aria-label="对话列表">
+          <button className="session-drawer-backdrop" type="button" onClick={() => setMobileSessionsOpen(false)} aria-label="关闭对话列表" />
+          <aside>
+            <div className="session-drawer-heading"><strong>对话</strong><button type="button" onClick={() => setMobileSessionsOpen(false)} title="关闭"><X size={17} /></button></div>
+            <SessionList
+              sessions={chatSessions}
+              activeSessionId={sessionId}
+              disabled={chatSending}
+              onNew={() => startNewConversation()}
+              onSelect={(id) => void handleSelectSession(id)}
+              onRename={handleRenameSession}
+              onDelete={handleDeleteSession}
+            />
+          </aside>
+        </div>
+      )}
 
       <main className="workspace">
         <header className="topbar">
@@ -303,7 +514,10 @@ function App() {
                 <span>南郭乐团代表</span>
                 <h2>南郭先生</h2>
               </div>
-              <MessageSquare size={20} />
+              <div className="chat-heading-actions">
+                <button className="mobile-session-button" type="button" onClick={() => setMobileSessionsOpen(true)} title="查看对话"><History size={18} /></button>
+                <MessageSquare size={20} />
+              </div>
             </div>
             <div className="chat-messages" aria-live="polite">
               {chatMessages.length === 0 ? (

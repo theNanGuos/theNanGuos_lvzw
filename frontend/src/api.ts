@@ -60,7 +60,18 @@ export interface ChatSession {
   id: string
   title: string
   messages: ChatMessage[]
-  active_project_id?: string
+  active_project_id?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ChatSessionSummary {
+  id: string
+  title: string
+  active_project_id?: string | null
+  message_count: number
+  created_at: string
+  updated_at: string
 }
 
 export interface ChatResponse {
@@ -111,6 +122,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const body = await response.json().catch(() => null)
     throw new Error(body?.detail ?? `请求失败 (${response.status})`)
   }
+  if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
 }
 
@@ -154,6 +166,30 @@ export function createSession(title = '新会话') {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title }),
   })
+}
+
+export function listSessions() {
+  return request<ChatSessionSummary[]>('/api/sessions')
+}
+
+export function getSession(sessionId: string) {
+  return request<ChatSession>(`/api/sessions/${sessionId}`)
+}
+
+export function renameSession(sessionId: string, title: string) {
+  return request<ChatSession>(`/api/sessions/${sessionId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  })
+}
+
+export function deleteSession(sessionId: string) {
+  return request<void>(`/api/sessions/${sessionId}`, { method: 'DELETE' })
+}
+
+export function getProject(projectId: string) {
+  return request<Project>(`/api/projects/${projectId}`)
 }
 
 export function sendChatMessage(sessionId: string, content: string) {

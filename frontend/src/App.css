@@ -30,6 +30,10 @@ button { letter-spacing: 0; }
 
 .sidebar {
   min-height: 100vh;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow: hidden;
   padding: 22px 14px;
   display: flex;
   flex-direction: column;
@@ -153,6 +157,69 @@ button { letter-spacing: 0; }
 .project-list i { grid-column: 1 / 3; height: 2px; overflow: hidden; background: #3b4942; }
 .project-list i span { height: 100%; display: block; background: #d87860; }
 .local-badge { margin-top: auto; padding: 11px 8px 0; border-top: 1px solid var(--nav-line); color: #85938b; display: flex; align-items: center; gap: 7px; font-size: 12px; }
+
+.session-list-panel {
+  min-height: 0;
+  margin: 22px 2px 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--nav-line);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.session-list-heading { min-height: 30px; padding: 0 6px 8px; display: flex; align-items: center; justify-content: space-between; color: #89988f; }
+.session-list-heading > span { font-size: 11px; font-weight: 900; }
+.session-list-heading > button,
+.session-menu-trigger,
+.session-row form button,
+.session-drawer-heading button,
+.mobile-session-button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.session-list-heading > button:hover,
+.session-menu-trigger:hover { background: #334039; color: white; }
+.session-list { min-height: 0; padding-right: 3px; display: flex; flex: 1; flex-direction: column; gap: 3px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #526159 transparent; }
+.session-list-empty { padding: 18px 7px; color: #829088; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.session-row { position: relative; min-width: 0; min-height: 46px; border-radius: 7px; color: #aeb9b3; display: grid; grid-template-columns: minmax(0, 1fr) 30px; align-items: center; }
+.session-row:hover, .session-row.active { background: #2a3731; color: white; }
+.session-row.active::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px; background: var(--accent); }
+.session-select { min-width: 0; height: 46px; padding: 0 5px 0 8px; border: 0; background: transparent; color: inherit; display: grid; grid-template-columns: 17px minmax(0, 1fr); align-items: center; gap: 8px; text-align: left; cursor: pointer; }
+.session-select:disabled { cursor: not-allowed; opacity: .55; }
+.session-select > span { min-width: 0; }
+.session-select strong, .session-select small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-select strong { font-size: 12px; }
+.session-select small { margin-top: 3px; color: #77867e; font-size: 11px; }
+.session-menu-trigger { color: #829088; opacity: 0; }
+.session-row:hover .session-menu-trigger, .session-row.active .session-menu-trigger, .session-menu-trigger:focus-visible { opacity: 1; }
+.session-menu { position: absolute; z-index: 25; top: 4px; right: 32px; width: 112px; padding: 5px; border: 1px solid #4a5a52; border-radius: 7px; background: #202c26; box-shadow: 0 12px 28px rgba(0, 0, 0, .28); display: grid; gap: 2px; }
+.session-menu button { min-height: 32px; padding: 0 8px; border: 0; border-radius: 5px; background: transparent; color: #d8e0dc; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 11px; }
+.session-menu button:hover { background: #334039; }
+.session-menu button.danger { color: #efaa9d; }
+.session-row form { grid-column: 1 / 3; padding: 6px; display: grid; grid-template-columns: minmax(0, 1fr) 28px 28px; gap: 3px; }
+.session-row form input { min-width: 0; height: 32px; padding: 0 8px; border: 1px solid #5e7067; border-radius: 5px; outline: 0; background: #17211d; color: white; font-size: 12px; }
+.session-row form button { color: #aeb9b3; }
+.session-row form button:hover { background: #334039; color: white; }
+.session-row form button:disabled { opacity: .4; cursor: not-allowed; }
+.session-action-error { margin: 3px 5px 6px; padding: 7px 8px; border: 1px solid #754a43; border-radius: 5px; color: #efaa9d; font-size: 11px; line-height: 1.4; }
+
+.chat-heading-actions { display: flex; align-items: center; gap: 7px; color: var(--green); }
+.mobile-session-button { display: none; border: 1px solid var(--line); color: var(--green); }
+.session-drawer { position: fixed; z-index: 60; inset: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr); }
+.session-drawer-backdrop { grid-column: 2; grid-row: 1; border: 0; background: rgba(10, 18, 14, .44); cursor: default; }
+.session-drawer > aside { grid-column: 1; grid-row: 1; min-width: 0; padding: 14px; background: var(--nav); color: white; display: flex; flex-direction: column; box-shadow: 18px 0 42px rgba(10, 18, 14, .25); }
+.session-drawer-heading { min-height: 40px; display: flex; align-items: center; justify-content: space-between; }
+.session-drawer-heading strong { font-size: 15px; }
+.session-drawer-heading button { color: #aeb9b3; }
+.session-drawer .session-list-panel { margin-top: 8px; }
 
 .workspace {
   min-width: 0;
@@ -896,6 +963,8 @@ button { letter-spacing: 0; }
   .sidebar-card,
   .recent-projects,
   .local-badge { display: none; }
+  .sidebar > .session-list-panel { display: none; }
+  .mobile-session-button { display: grid; }
   .side-nav button { width: 42px; justify-content: center; padding: 0; font-size: 0; }
   .workspace { padding-inline: 18px; }
   .compose-layout {
@@ -912,7 +981,7 @@ button { letter-spacing: 0; }
 
 @media (max-width: 580px) {
   .app-shell { display: block; }
-  .sidebar { min-height: 58px; height: 58px; width: 100%; flex-direction: row; justify-content: space-between; padding: 10px 14px; }
+  .sidebar { position: static; min-height: 58px; height: 58px; width: 100%; flex-direction: row; justify-content: space-between; padding: 10px 14px; }
   .side-nav { display: flex; gap: 5px; }
   .workspace { padding: 0 12px 18px; }
   .topbar { height: auto; min-height: 82px; align-items: flex-start; flex-direction: column; justify-content: center; gap: 10px; padding: 12px 0; }
@@ -931,6 +1000,7 @@ button { letter-spacing: 0; }
   .chat-message { max-width: 88%; }
   .chat-progress { margin-inline: 16px; }
   .chat-composer { margin: 0 16px 16px; }
+  .session-drawer { grid-template-columns: minmax(0, 1fr) 52px; }
   .portfolio-page { min-height: auto; padding-bottom: 130px; }
   .portfolio-titlebar { align-items: stretch; flex-direction: column; gap: 14px; padding-bottom: 18px; }
   .portfolio-search { width: 100%; }

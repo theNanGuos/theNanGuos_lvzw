@@ -23,7 +23,7 @@ Audio Reference -> Conductor -> Melody -> Harmony -> Arrange -> Sound Design -> 
 Agent 使用 Pydantic 模型传递结构化状态。不同音乐类型会组合不同节点：人声流行包含 Lyrics，电子器乐先做 Rhythm，古典和影视配乐跳过 Lyrics 并可根据 Melody Agent 的 `score_spec` 在项目 `artifacts/` 目录导出 MusicXML 与 MIDI。
 
 - FastAPI 提供本地项目、音频上传和工作流运行接口。
-- 南郭先生（Chat Agent）按 session 保存短期上下文，并把明确偏好合并到跨 session 用户画像。
+- 南郭先生（Chat Agent）按 session 保存独立短期上下文，并把明确偏好合并到跨 session 用户画像。前端支持新建、切换、重命名、删除和通过 URL 恢复会话；删除会话不会删除关联作品。
 - React 工作区提供对话入口、独立作品集页面、后台生成进度、项目恢复、精确创作表单和工作流画布。
 - KIE/Suno 接入通过独立 provider 封装，默认不会产生真实请求。
 
@@ -98,6 +98,7 @@ npm run dev
 主要新增接口：
 
 - `POST /api/sessions`、`POST /api/sessions/{id}/messages`：创建会话并由南郭先生回复、路由。
+- `GET /api/sessions`、`GET/PATCH/DELETE /api/sessions/{id}`：列出、恢复、重命名和删除独立会话。
 - `GET /api/portfolio`：读取已完成和正在生成的本地作品。
 - `POST /api/projects/{id}/runs/async`：启动后台运行并立即返回 Run。
 - `GET /api/projects/{id}/runs/{run_id}`：读取进度、阶段、错误和最终产物。

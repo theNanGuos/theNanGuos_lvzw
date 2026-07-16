@@ -24,6 +24,85 @@ test('keeps controls readable on mobile', async ({ page }) => {
   await page.screenshot({ path: '/tmp/nanguos-mobile.png', fullPage: true })
 })
 
+test('switches and manages isolated chat sessions', async ({ page }) => {
+  const now = '2026-07-16T12:00:00Z'
+  let sessions = [
+    {
+      id: 'session-one',
+      title: '雨夜灵感',
+      messages: [{ id: 'm1', role: 'user', content: '第一个会话的内容', created_at: now }],
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      id: 'session-two',
+      title: '公路配乐',
+      messages: [{ id: 'm2', role: 'user', content: '第二个会话的内容', created_at: now }],
+      created_at: now,
+      updated_at: now,
+    },
+  ]
+  await page.route('http://127.0.0.1:8000/api/portfolio', (route) => route.fulfill({ json: [] }))
+  await page.route('http://127.0.0.1:8000/api/sessions**', async (route) => {
+    const request = route.request()
+    const url = new URL(request.url())
+    const sessionId = url.pathname.split('/').at(-1)
+    if (url.pathname === '/api/sessions') {
+      await route.fulfill({ json: sessions })
+      return
+    }
+    const session = sessions.find((item) => item.id === sessionId)
+    if (!session) {
+      await route.fulfill({ status: 404, json: { detail: 'Session not found' } })
+      return
+    }
+    if (request.method() === 'PATCH') {
+      const payload = request.postDataJSON() as { title: string }
+      session.title = payload.title
+      await route.fulfill({ json: session })
+      return
+    }
+    if (request.method() === 'DELETE') {
+      sessions = sessions.filter((item) => item.id !== sessionId)
+      await route.fulfill({ status: 204, body: '' })
+      return
+    }
+    await route.fulfill({ json: session })
+  })
+
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/?session=session-one')
+  await expect(page.getByText('第一个会话的内容')).toBeVisible()
+  await page.getByRole('button', { name: /公路配乐/ }).click()
+  await expect(page).toHaveURL(/session=session-two/)
+  await expect(page.getByText('第二个会话的内容')).toBeVisible()
+  await expect(page.getByText('第一个会话的内容')).toHaveCount(0)
+
+  const activeRow = page.locator('.session-row.active')
+  await activeRow.getByTitle('对话操作').click()
+  await page.getByRole('button', { name: '重命名' }).click()
+  await activeRow.getByRole('textbox').fill('新的公路配乐')
+  await activeRow.getByTitle('保存').click()
+  await expect(activeRow.getByText('新的公路配乐')).toBeVisible()
+
+  page.once('dialog', (dialog) => dialog.accept())
+  await activeRow.getByTitle('对话操作').click()
+  await page.getByRole('button', { name: '删除' }).click()
+  await expect(page).toHaveURL(/session=session-one/)
+  await expect(page.getByText('第一个会话的内容')).toBeVisible()
+
+  await page.locator('.new-project').click()
+  await expect(page).not.toHaveURL(/session=/)
+  await expect(page.getByText('从一个想法开始')).toBeVisible()
+  await page.getByRole('button', { name: /雨夜灵感/ }).click()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByTitle('查看对话').click()
+  await expect(page.getByRole('dialog', { name: '对话列表' })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  await page.screenshot({ path: '/tmp/nanguos-sessions-mobile.png', fullPage: true })
+})
+
 test('renders the portfolio as a cover-led music library', async ({ page }) => {
   await page.route('http://127.0.0.1:8000/api/portfolio', async (route) => {
     await route.fulfill({
