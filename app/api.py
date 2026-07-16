@@ -3,7 +3,7 @@ from pathlib import Path
 from threading import Lock, Thread
 from typing import Protocol
 
-from fastapi import FastAPI, File, HTTPException, UploadFile, status
+from fastapi import FastAPI, File, HTTPException, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -21,6 +21,8 @@ from models.chat import (
     ChatResponse,
     ChatSession,
     ChatSessionCreate,
+    ChatSessionSummary,
+    ChatSessionUpdate,
 )
 from models.memory import MemoryContext, PortfolioItem, PortfolioTrack
 from models.project import Asset, Project, ProjectCreate, RunResult
@@ -475,9 +477,19 @@ def create_app(
         except ProjectNotFoundError as exc:
             raise HTTPException(status_code=404, detail="Run not found") from exc
 
-    @app.get("/api/sessions", response_model=list[ChatSession])
-    def list_sessions() -> list[ChatSession]:
-        return sessions.list_sessions()
+    @app.get("/api/sessions", response_model=list[ChatSessionSummary])
+    def list_sessions() -> list[ChatSessionSummary]:
+        return [
+            ChatSessionSummary(
+                id=session.id,
+                title=session.title,
+                active_project_id=session.active_project_id,
+                message_count=len(session.messages),
+                created_at=session.created_at,
+                updated_at=session.updated_at,
+            )
+            for session in sessions.list_sessions()
+        ]
 
     @app.post("/api/sessions", response_model=ChatSession, status_code=status.HTTP_201_CREATED)
     def create_session(payload: ChatSessionCreate) -> ChatSession:
@@ -488,6 +500,20 @@ def create_app(
     @app.get("/api/sessions/{session_id}", response_model=ChatSession)
     def read_session(session_id: str) -> ChatSession:
         return get_session(session_id)
+
+    @app.patch("/api/sessions/{session_id}", response_model=ChatSession)
+    def update_session(session_id: str, payload: ChatSessionUpdate) -> ChatSession:
+        get_session(session_id)
+        session = sessions.update_session(session_id, payload)
+        logger.info("chat_session_updated session_id=%s", session_id)
+        return session
+
+    @app.delete("/api/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+    def delete_session(session_id: str) -> Response:
+        get_session(session_id)
+        sessions.delete_session(session_id)
+        logger.info("chat_session_deleted session_id=%s", session_id)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @app.post("/api/sessions/{session_id}/messages", response_model=ChatResponse)
     def send_message(session_id: str, payload: ChatRequest) -> ChatResponse:

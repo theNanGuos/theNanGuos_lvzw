@@ -1,7 +1,8 @@
 from pathlib import Path
+from shutil import rmtree
 from threading import RLock
 
-from models.chat import ChatMessage, ChatSession, ChatSessionCreate
+from models.chat import ChatMessage, ChatSession, ChatSessionCreate, ChatSessionUpdate
 from models.project import utc_now
 
 
@@ -47,6 +48,20 @@ class LocalSessionStore:
         session.messages.append(message)
         self.save_session(session)
         return session
+
+    def update_session(self, session_id: str, data: ChatSessionUpdate) -> ChatSession:
+        with self._lock:
+            session = self.get_session(session_id)
+            session.title = data.title.strip()
+            self.save_session(session)
+            return session
+
+    def delete_session(self, session_id: str) -> None:
+        directory = self._session_path(session_id).parent
+        if not (directory / "session.json").is_file():
+            raise SessionNotFoundError(session_id)
+        with self._lock:
+            rmtree(directory)
 
     def _session_path(self, session_id: str) -> Path:
         if not session_id.isalnum():

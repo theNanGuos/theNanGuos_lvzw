@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from models.memory import MemoryObservation
 from models.project import ProjectPreset, utc_now
@@ -35,8 +35,29 @@ class ChatSession(BaseModel):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class ChatSessionSummary(BaseModel):
+    id: str
+    title: str
+    active_project_id: str | None = None
+    message_count: int = Field(ge=0)
+    created_at: datetime
+    updated_at: datetime
+
+
 class ChatSessionCreate(BaseModel):
     title: str = Field(default="新会话", min_length=1, max_length=100)
+
+
+class ChatSessionUpdate(BaseModel):
+    title: str = Field(min_length=1, max_length=100)
+
+    @field_validator("title")
+    @classmethod
+    def normalize_title(cls, value: str) -> str:
+        title = value.strip()
+        if not title:
+            raise ValueError("Session title cannot be blank")
+        return title
 
 
 class ChatRequest(BaseModel):

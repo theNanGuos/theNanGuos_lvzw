@@ -135,6 +135,20 @@ class FakeChatAgent:
         }
 
 
+class FakeConversationAgent:
+    def __init__(self):
+        self.inputs = []
+
+    def __call__(self, state):
+        self.inputs.append(state)
+        return {
+            "reply": f"收到：{state['latest_message']}",
+            "action": "chat_only",
+            "preset": "auto",
+            "memory_observations": [],
+        }
+
+
 def test_project_lifecycle_is_persisted_locally(tmp_path):
     client, store, runner, generator = make_client(tmp_path)
 
@@ -298,6 +312,57 @@ def test_chat_session_routes_workflow_and_persists_memory(tmp_path):
     assert portfolio[0]["tracks"][0]["cover_url"] == "/works/generated.jpg"
     assert portfolio[0]["tracks"][0]["duration_seconds"] == 123.4
     assert portfolio[0]["tracks"][0]["style"] == "cinematic piano"
+
+
+def test_chat_sessions_keep_context_separate_and_support_management(tmp_path):
+    chat_agent = FakeConversationAgent()
+    app = create_app(
+        store=LocalProjectStore(tmp_path / "projects"),
+        session_store=LocalSessionStore(tmp_path / "sessions"),
+        memory_store=LocalMemoryStore(tmp_path / "memory" / "user_profile.json"),
+        runner_factory=lambda: FakeRunner(),
+        chat_agent_factory=lambda: chat_agent,
+        music_generator=FakeMusicGenerator(),
+        demo_renderer=fake_demo,
+        audio_analyzer=fake_summary,
+        works_root=tmp_path / "works",
+    )
+    client = TestClient(app)
+    first = client.post("/api/sessions", json={"title": "第一段对话"}).json()
+    second = client.post("/api/sessions", json={"title": "第二段对话"}).json()
+
+    client.post(
+        f"/api/sessions/{first['id']}/messages",
+        json={"content": "只属于第一个会话"},
+    )
+    client.post(
+        f"/api/sessions/{second['id']}/messages",
+        json={"content": "只属于第二个会话"},
+    )
+
+    first_context = chat_agent.inputs[0]["recent_messages"]
+    second_context = chat_agent.inputs[1]["recent_messages"]
+    assert [message["content"] for message in first_context] == ["只属于第一个会话"]
+    assert [message["content"] for message in second_context] == ["只属于第二个会话"]
+
+    renamed = client.patch(
+        f"/api/sessions/{first['id']}",
+        json={"title": "新的会话名称"},
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["title"] == "新的会话名称"
+    assert client.patch(
+        f"/api/sessions/{first['id']}",
+        json={"title": "   "},
+    ).status_code == 422
+
+    deleted = client.delete(f"/api/sessions/{first['id']}")
+    assert deleted.status_code == 204
+    assert client.get(f"/api/sessions/{first['id']}").status_code == 404
+    listed_sessions = client.get("/api/sessions").json()
+    assert [session["id"] for session in listed_sessions] == [second["id"]]
+    assert listed_sessions[0]["message_count"] == 2
+    assert "messages" not in listed_sessions[0]
 
 
 def test_app_startup_marks_orphaned_local_run_as_interrupted(tmp_path):
