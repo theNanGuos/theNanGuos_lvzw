@@ -57,7 +57,7 @@ const statusCopy: Record<RunStatus, string> = {
 }
 
 const presetOptions: Array<{ value: Preset; label: string; description: string }> = [
-  { value: 'auto', label: '自动选择', description: '由指挥 Agent 判断最合适的乐团路径' },
+  { value: 'auto', label: '自动选择', description: '由指挥 Agent 选择合适的乐团路径' },
   { value: 'pop_vocal', label: '流行人声', description: '歌词、旋律、节奏和制作完整协作' },
   { value: 'classical_instrumental', label: '古典器乐', description: '主题、和声、配器与可选乐谱导出' },
   { value: 'electronic_instrumental', label: '电子器乐', description: '节奏先行，突出低频和音色设计' },
