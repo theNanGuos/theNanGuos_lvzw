@@ -13,9 +13,12 @@ class MelodyAgent(Agent):
             output_schema=MelodyOutput,
             input_fields=(
                 "user_request",
+                "workflow",
                 "creative_brief",
                 "instructions_for_agents",
                 "lyrics",
+                "harmony_plan",
+                "rhythm_plan",
             ),
         )
 

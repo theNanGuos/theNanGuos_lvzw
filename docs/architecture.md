@@ -20,8 +20,14 @@ score tools / music generation providers
 - `classical_instrumental`：Audio Reference、Conductor、Melody、Harmony、Arrange、可选 Score Export、Sound Design、Mix Review、Prompt Compiler。
 - `electronic_instrumental`：Audio Reference、Conductor、Rhythm、Melody、Harmony、Arrange、Sound Design、Mix Review、Prompt Compiler。
 - `soundtrack_score`：Audio Reference、Conductor、Melody、Harmony、Arrange、Sound Design、Mix Review、Prompt Compiler。
+- `jazz_ensemble`：Audio Reference、Conductor、Harmony、Rhythm、Melody、Improvisation、Performance、Arrange、Sound Design、Mix Review、Prompt Compiler。
+- `rock_vocal`：Audio Reference、Conductor、Lyrics、Melody、Harmony、Rhythm、Performance、Arrange、Sound Design、Mix Review、Prompt Compiler。
+- `folk_acoustic`：Audio Reference、Conductor、Lyrics、Melody、Harmony、Performance、Arrange、Sound Design、Mix Review、Prompt Compiler。
+- `hiphop_vocal`：Audio Reference、Conductor、Rhythm、Lyrics、Melody、Harmony、Performance、Arrange、Sound Design、Mix Review、Prompt Compiler。
 
 Conductor 只能选择已注册的预设。所有 LLM 节点使用 Pydantic 结构化输出，关键领域数据不从自由文本消息中解析。
+
+`Improvisation Agent` 只负责爵士路径的独奏者、solo 曲式、即兴语汇、乐手互动和边界；`Performance Agent` 负责爵士、摇滚、民谣与嘻哈路径的演奏法、动态、合奏关系和人性化细节。二者都不直接编译供应商提示词，结果由 Arrange、Sound Design 和 Prompt Compiler 继续消费。
 
 ## 本地数据
 

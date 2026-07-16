@@ -314,10 +314,15 @@ class LocalMemoryStore:
         resolved = EffectiveCreativePreferences()
 
         request = project.user_request.lower()
-        if project.preset == "pop_vocal":
+        if project.preset in {"pop_vocal", "rock_vocal", "folk_acoustic", "hiphop_vocal"}:
             resolved.vocal = True
             resolved.sources["vocal"] = "project_preset"
-        elif project.preset in {"classical_instrumental", "electronic_instrumental", "soundtrack_score"}:
+        elif project.preset in {
+            "classical_instrumental",
+            "electronic_instrumental",
+            "soundtrack_score",
+            "jazz_ensemble",
+        }:
             resolved.vocal = False
             resolved.sources["vocal"] = "project_preset"
         elif any(marker in request for marker in ("纯音乐", "无人声", "无 vocal", "instrumental", "no vocal")):

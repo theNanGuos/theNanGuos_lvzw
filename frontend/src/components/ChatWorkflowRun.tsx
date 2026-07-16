@@ -16,6 +16,10 @@ const presetLabels = {
   classical_instrumental: '古典器乐',
   electronic_instrumental: '电子器乐',
   soundtrack_score: '影视配乐',
+  jazz_ensemble: '爵士乐团',
+  rock_vocal: '摇滚人声',
+  folk_acoustic: '原声民谣',
+  hiphop_vocal: '嘻哈人声',
 }
 
 function stageLabel(stage: string) {

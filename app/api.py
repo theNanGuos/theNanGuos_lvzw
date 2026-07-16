@@ -99,7 +99,7 @@ def generation_options(state: dict, project: Project) -> dict[str, object]:
     ]
     style_parts.extend(value_from(brief, "mood", []) or [])
     return {
-        "instrumental": state.get("workflow") != "pop_vocal",
+        "instrumental": not bool(value_from(brief, "vocal", False)),
         "style": ", ".join(str(part) for part in style_parts if part),
         "title": str(value_from(brief, "title", project.title) or project.title),
         "custom_mode": True,

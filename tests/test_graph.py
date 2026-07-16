@@ -7,9 +7,11 @@ from models.state import (
     ArrangementOutput,
     ConductorOutput,
     HarmonyOutput,
+    ImprovisationOutput,
     LyricsOutput,
     MelodyOutput,
     MixReviewOutput,
+    PerformanceOutput,
     PromptOutput,
     RhythmOutput,
     SoundDesignOutput,
@@ -105,6 +107,21 @@ def melody_output():
     )
 
 
+def lyrics_output():
+    return LyricsOutput.model_validate(
+        {
+            "lyrics": {
+                "verse": ["夜色沿着街道展开"],
+                "chorus": ["让回声带我们向前"],
+                "language": "中文",
+                "theme": "出发",
+                "hook": "带我们向前",
+                "singing_style_hint": "有节奏感",
+            }
+        }
+    )
+
+
 def arrangement_output():
     return ArrangementOutput.model_validate(
         {
@@ -164,6 +181,33 @@ def mix_review_output():
                 "focus": "主旋律清晰",
                 "balance_notes": ["低频稳定", "人声靠前"],
                 "risk_checks": ["避免配器遮挡 hook"],
+            }
+        }
+    )
+
+
+def improvisation_output():
+    return ImprovisationOutput.model_validate(
+        {
+            "improvisation_plan": {
+                "soloists": ["萨克斯", "钢琴"],
+                "solo_form": "主题后各一轮独奏并回到主题",
+                "vocabulary": ["和弦音导向", "动机发展"],
+                "ensemble_interaction": "节奏组根据独奏密度回应",
+                "guardrails": ["保留主题动机"],
+            }
+        }
+    )
+
+
+def performance_output():
+    return PerformanceOutput.model_validate(
+        {
+            "performance_plan": {
+                "articulation": "短音清晰，长音保留呼吸",
+                "dynamics": "逐段增强后自然回落",
+                "ensemble_interaction": "鼓贝锁定并回应主奏",
+                "humanization": ["自然力度差", "轻微时值浮动"],
             }
         }
     )
@@ -275,6 +319,105 @@ def test_soundtrack_workflow_uses_score_style_branch_without_rhythm():
     assert result["workflow"] == "soundtrack_score"
     assert SoundDesignOutput in llm.calls
     assert RhythmOutput not in llm.calls
+
+
+def test_jazz_workflow_builds_harmony_and_groove_before_improvisation():
+    llm = ScriptedStructuredModel(
+        [
+            conductor_output("jazz_ensemble", vocal=False),
+            harmony_output(),
+            rhythm_output(),
+            melody_output(),
+            improvisation_output(),
+            performance_output(),
+            arrangement_output(),
+            sound_design_output(),
+            mix_review_output(),
+            PromptOutput(final_prompt="爵士四重奏，swing 律动，萨克斯与钢琴即兴，无人声。"),
+        ]
+    )
+
+    result = build_graph(llm).invoke({"user_request": "创作一首有萨克斯即兴的爵士乐"})
+
+    assert result["workflow"] == "jazz_ensemble"
+    assert "lyrics" not in result
+    assert result["improvisation_plan"].soloists == ["萨克斯", "钢琴"]
+    assert llm.calls[:6] == [
+        ConductorOutput,
+        HarmonyOutput,
+        RhythmOutput,
+        MelodyOutput,
+        ImprovisationOutput,
+        PerformanceOutput,
+    ]
+
+
+def test_rock_workflow_adds_band_performance_after_rhythm():
+    llm = ScriptedStructuredModel(
+        [
+            conductor_output("rock_vocal", vocal=True),
+            lyrics_output(),
+            melody_output(),
+            harmony_output(),
+            rhythm_output(),
+            performance_output(),
+            arrangement_output(),
+            sound_design_output(),
+            mix_review_output(),
+            PromptOutput(final_prompt="中文摇滚，真实乐队动态，强力副歌。"),
+        ]
+    )
+
+    result = build_graph(llm).invoke({"user_request": "写一首热烈的中文摇滚"})
+
+    assert result["workflow"] == "rock_vocal"
+    assert result["lyrics"].hook
+    assert llm.calls[4:6] == [RhythmOutput, PerformanceOutput]
+
+
+def test_folk_workflow_prioritizes_story_and_acoustic_performance():
+    llm = ScriptedStructuredModel(
+        [
+            conductor_output("folk_acoustic", vocal=True),
+            lyrics_output(),
+            melody_output(),
+            harmony_output(),
+            performance_output(),
+            arrangement_output(),
+            sound_design_output(),
+            mix_review_output(),
+            PromptOutput(final_prompt="原声民谣，叙事人声，自然触弦质感。"),
+        ]
+    )
+
+    result = build_graph(llm).invoke({"user_request": "写一首讲远行故事的原声民谣"})
+
+    assert result["workflow"] == "folk_acoustic"
+    assert PerformanceOutput in llm.calls
+    assert RhythmOutput not in llm.calls
+
+
+def test_hiphop_workflow_builds_beat_before_lyrics_and_flow():
+    llm = ScriptedStructuredModel(
+        [
+            conductor_output("hiphop_vocal", vocal=True),
+            rhythm_output(),
+            lyrics_output(),
+            melody_output(),
+            harmony_output(),
+            performance_output(),
+            arrangement_output(),
+            sound_design_output(),
+            mix_review_output(),
+            PromptOutput(final_prompt="嘻哈人声，boom bap beat，清晰 flow 与 hook。"),
+        ]
+    )
+
+    result = build_graph(llm).invoke({"user_request": "做一首 boom bap 说唱"})
+
+    assert result["workflow"] == "hiphop_vocal"
+    assert llm.calls[:3] == [ConductorOutput, RhythmOutput, LyricsOutput]
+    assert result["performance_plan"].humanization
 
 
 def test_prompt_json_accepts_fenced_json():

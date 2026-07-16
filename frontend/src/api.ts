@@ -4,6 +4,10 @@ export type Preset =
   | 'classical_instrumental'
   | 'electronic_instrumental'
   | 'soundtrack_score'
+  | 'jazz_ensemble'
+  | 'rock_vocal'
+  | 'folk_acoustic'
+  | 'hiphop_vocal'
 
 export interface Project {
   id: string

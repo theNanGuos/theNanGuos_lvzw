@@ -3,12 +3,12 @@ import time
 
 from fastapi.testclient import TestClient
 
-from app.api import create_app
+from app.api import create_app, generation_options
 from app.memory import LocalMemoryStore
 from app.session_store import LocalSessionStore
 from app.storage import LocalProjectStore
 from providers.base import GeneratedTrack
-from models.project import ProjectCreate
+from models.project import Project, ProjectCreate
 from tools.audio import AudioInspection, GeneratedAudioSummary, ToolExecutionError
 from tools.demo_audio import DemoAudio
 
@@ -109,6 +109,21 @@ def make_client(tmp_path):
         works_root=tmp_path / "works",
     )
     return TestClient(app), store, runner, generator
+
+
+def test_generation_options_follow_structured_vocal_flag_for_new_workflows():
+    model = Project(title="新类型", user_request="创作音乐")
+    vocal = generation_options(
+        {"workflow": "rock_vocal", "creative_brief": {"vocal": True}},
+        model,
+    )
+    instrumental = generation_options(
+        {"workflow": "jazz_ensemble", "creative_brief": {"vocal": False}},
+        model,
+    )
+
+    assert vocal["instrumental"] is False
+    assert instrumental["instrumental"] is True
 
 
 class FakeChatAgent:

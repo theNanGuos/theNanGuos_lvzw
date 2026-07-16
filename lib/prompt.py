@@ -38,6 +38,16 @@ def rhythm() -> str:
     return read(path)
 
 
+def improvisation() -> str:
+    path = PROJECT_DIR / "prompts" / "improvisation.md"
+    return read(path)
+
+
+def performance() -> str:
+    path = PROJECT_DIR / "prompts" / "performance.md"
+    return read(path)
+
+
 def sound_design() -> str:
     path = PROJECT_DIR / "prompts" / "sound_design.md"
     return read(path)

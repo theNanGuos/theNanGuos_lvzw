@@ -9,6 +9,10 @@ WorkflowName = Literal[
     "classical_instrumental",
     "electronic_instrumental",
     "soundtrack_score",
+    "jazz_ensemble",
+    "rock_vocal",
+    "folk_acoustic",
+    "hiphop_vocal",
 ]
 
 
@@ -116,6 +120,29 @@ class RhythmOutput(BaseModel):
     rhythm_plan: RhythmPlan
 
 
+class ImprovisationPlan(BaseModel):
+    soloists: list[str] = Field(default_factory=list)
+    solo_form: str
+    vocabulary: list[str] = Field(default_factory=list)
+    ensemble_interaction: str
+    guardrails: list[str] = Field(default_factory=list)
+
+
+class ImprovisationOutput(BaseModel):
+    improvisation_plan: ImprovisationPlan
+
+
+class PerformancePlan(BaseModel):
+    articulation: str
+    dynamics: str
+    ensemble_interaction: str
+    humanization: list[str] = Field(default_factory=list)
+
+
+class PerformanceOutput(BaseModel):
+    performance_plan: PerformancePlan
+
+
 class SoundDesignPlan(BaseModel):
     palette: list[str] = Field(default_factory=list)
     signature_sounds: list[str] = Field(default_factory=list)
@@ -159,6 +186,10 @@ class State(TypedDict, total=False):
         "classical_instrumental",
         "electronic_instrumental",
         "soundtrack_score",
+        "jazz_ensemble",
+        "rock_vocal",
+        "folk_acoustic",
+        "hiphop_vocal",
     ]
     reference_audio_paths: list[str]
     audio_references: list[AudioReference]
@@ -170,6 +201,8 @@ class State(TypedDict, total=False):
     score_spec: ScoreSpec | None
     harmony_plan: HarmonyPlan
     rhythm_plan: RhythmPlan
+    improvisation_plan: ImprovisationPlan
+    performance_plan: PerformancePlan
     sound_design_plan: SoundDesignPlan
     arrangement_plan: ArrangementPlan
     mix_review: MixReview

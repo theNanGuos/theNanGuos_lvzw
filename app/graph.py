@@ -5,9 +5,11 @@ from agents.arrange import ArrangeAgent
 from agents.audio_reference import AudioReferenceAgent
 from agents.conductor import ConductorAgent
 from agents.harmony import HarmonyAgent
+from agents.improvisation import ImprovisationAgent
 from agents.lyrics import LyricsAgent
 from agents.melody import MelodyAgent
 from agents.mix_review import MixReviewAgent
+from agents.performance import PerformanceAgent
 from agents.prompt_compiler import PromptCompilerAgent
 from agents.rhythm import RhythmAgent
 from agents.sound_design import SoundDesignAgent
@@ -28,13 +30,25 @@ def route_score_export(state: State) -> str:
 def route_after_harmony(state: State) -> str:
     if state["workflow"] in {"classical_instrumental", "electronic_instrumental", "soundtrack_score"}:
         return "arrange"
+    if state["workflow"] in {"folk_acoustic", "hiphop_vocal"}:
+        return "performance"
     return "rhythm"
 
 
 def route_after_rhythm(state: State) -> str:
-    if state["workflow"] == "electronic_instrumental":
+    if state["workflow"] in {"electronic_instrumental", "jazz_ensemble"}:
         return "melody"
+    if state["workflow"] == "hiphop_vocal":
+        return "lyrics"
+    if state["workflow"] == "rock_vocal":
+        return "performance"
     return "arrange"
+
+
+def route_after_melody(state: State) -> str:
+    if state["workflow"] == "jazz_ensemble":
+        return "improvisation"
+    return "harmony"
 
 
 def route_after_arrange(state: State) -> str:
@@ -52,6 +66,8 @@ def build_graph(llm: BaseChatModel):
     builder.add_node("melody", MelodyAgent(llm))
     builder.add_node("harmony", HarmonyAgent(llm))
     builder.add_node("rhythm", RhythmAgent(llm))
+    builder.add_node("improvisation", ImprovisationAgent(llm))
+    builder.add_node("performance", PerformanceAgent(llm))
     builder.add_node("arrange", ArrangeAgent(llm))
     builder.add_node("sound_design", SoundDesignAgent(llm))
     builder.add_node("mix_review", MixReviewAgent(llm))
@@ -68,16 +84,28 @@ def build_graph(llm: BaseChatModel):
             "classical_instrumental": "melody",
             "electronic_instrumental": "rhythm",
             "soundtrack_score": "melody",
+            "jazz_ensemble": "harmony",
+            "rock_vocal": "lyrics",
+            "folk_acoustic": "lyrics",
+            "hiphop_vocal": "rhythm",
         },
     )
     builder.add_edge("lyrics", "melody")
-    builder.add_edge("melody", "harmony")
+    builder.add_conditional_edges(
+        "melody",
+        route_after_melody,
+        {
+            "harmony": "harmony",
+            "improvisation": "improvisation",
+        },
+    )
     builder.add_conditional_edges(
         "harmony",
         route_after_harmony,
         {
             "rhythm": "rhythm",
             "arrange": "arrange",
+            "performance": "performance",
         },
     )
     builder.add_conditional_edges(
@@ -85,9 +113,13 @@ def build_graph(llm: BaseChatModel):
         route_after_rhythm,
         {
             "melody": "melody",
+            "lyrics": "lyrics",
+            "performance": "performance",
             "arrange": "arrange",
         },
     )
+    builder.add_edge("improvisation", "performance")
+    builder.add_edge("performance", "arrange")
     builder.add_conditional_edges(
         "arrange",
         route_after_arrange,

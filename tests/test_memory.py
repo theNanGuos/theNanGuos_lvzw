@@ -97,6 +97,15 @@ def test_explicit_project_controls_override_long_term_memory(tmp_path):
     assert explicit.instruments == ["电吉他"]
     assert explicit.sources["vocal"] == "project_preset"
 
+    jazz = store.resolve_preferences(
+        Project(title="爵士", user_request="创作爵士", preset="jazz_ensemble")
+    )
+    hiphop = store.resolve_preferences(
+        Project(title="嘻哈", user_request="创作说唱", preset="hiphop_vocal")
+    )
+    assert jazz.vocal is False
+    assert hiphop.vocal is True
+
 
 def test_memory_preferences_can_be_edited_deleted_and_cleared(tmp_path):
     store = LocalMemoryStore(tmp_path / "profile.json")

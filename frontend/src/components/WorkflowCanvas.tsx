@@ -11,7 +11,7 @@ import {
   type Node,
   type NodeProps,
 } from '@xyflow/react'
-import { AudioWaveform, Drum, Feather, Music, Radio, SlidersHorizontal, Sparkles, Wand2 } from 'lucide-react'
+import { AudioWaveform, Drum, Feather, Music, Radio, SlidersHorizontal, Sparkles, Users, Wand2 } from 'lucide-react'
 import type { Preset } from '../api'
 import '@xyflow/react/dist/style.css'
 
@@ -24,6 +24,8 @@ const icons = {
   melody: Music,
   harmony: Wand2,
   rhythm: Drum,
+  improvisation: Sparkles,
+  performance: Users,
   arrange: SlidersHorizontal,
   sound: Radio,
   review: AudioWaveform,
@@ -51,25 +53,38 @@ function graphForPreset(
   runStatus: 'idle' | 'running' | 'completed' | 'failed',
   currentStage: string,
 ): { nodes: Node<AgentData>[]; edges: Edge[] } {
-  type EdgePair = [string, string, string?, string?]
-  const definitions: Array<[string, string, string, number, number]> = [
-    ['conductor', '指挥', '分析与分工', 20, 88],
-    ...(preset === 'pop_vocal' || preset === 'auto'
-      ? [['lyrics', '作词', '歌词与 Hook', 170, 38] as [string, string, string, number, number]]
-      : []),
-    ...(preset === 'electronic_instrumental'
-      ? [['rhythm', '节奏', 'Groove 与低频', 170, 138] as [string, string, string, number, number]]
-      : []),
-    ['melody', '作曲', '主题与旋律', 320, 88],
-    ['harmony', '和声', '张力与进行', 470, 38],
-    ...(preset !== 'electronic_instrumental'
-      ? [['rhythm', '节奏', '律动与能量', 470, 138] as [string, string, string, number, number]]
-      : []),
-    ['arrange', '编曲', '配器与织体', 620, 88],
-    ['sound', '音色', '声景与质感', 770, 38],
-    ['review', '审听', '平衡与风险', 770, 138],
-    ['prompt', '提示词', '汇总与编译', 920, 88],
-  ]
+  const agents: Record<string, [string, string]> = {
+    conductor: ['指挥', '分析与分工'],
+    lyrics: ['作词', '歌词与 Hook'],
+    melody: ['作曲', '主题与旋律'],
+    harmony: ['和声', '张力与进行'],
+    rhythm: ['节奏', 'Groove 与能量'],
+    improvisation: ['即兴', 'Solo 与乐手对话'],
+    performance: ['演奏', '动态与人性化'],
+    arrange: ['编曲', '配器与织体'],
+    sound: ['音色', '声景与质感'],
+    review: ['审听', '平衡与风险'],
+    prompt: ['提示词', '汇总与编译'],
+  }
+  const pipelines: Record<Preset, string[]> = {
+    auto: ['conductor', 'lyrics', 'melody', 'harmony', 'rhythm', 'arrange', 'sound', 'review', 'prompt'],
+    pop_vocal: ['conductor', 'lyrics', 'melody', 'harmony', 'rhythm', 'arrange', 'sound', 'review', 'prompt'],
+    classical_instrumental: ['conductor', 'melody', 'harmony', 'arrange', 'sound', 'review', 'prompt'],
+    electronic_instrumental: ['conductor', 'rhythm', 'melody', 'harmony', 'arrange', 'sound', 'review', 'prompt'],
+    soundtrack_score: ['conductor', 'melody', 'harmony', 'arrange', 'sound', 'review', 'prompt'],
+    jazz_ensemble: ['conductor', 'harmony', 'rhythm', 'melody', 'improvisation', 'performance', 'arrange', 'sound', 'review', 'prompt'],
+    rock_vocal: ['conductor', 'lyrics', 'melody', 'harmony', 'rhythm', 'performance', 'arrange', 'sound', 'review', 'prompt'],
+    folk_acoustic: ['conductor', 'lyrics', 'melody', 'harmony', 'performance', 'arrange', 'sound', 'review', 'prompt'],
+    hiphop_vocal: ['conductor', 'rhythm', 'lyrics', 'melody', 'harmony', 'performance', 'arrange', 'sound', 'review', 'prompt'],
+  }
+  const pipeline = pipelines[preset]
+  const definitions: Array<[string, string, string, number, number]> = pipeline.map((kind, index) => [
+    kind,
+    agents[kind][0],
+    agents[kind][1],
+    20 + index * 145,
+    index % 2 === 0 ? 58 : 128,
+  ])
   const workflowFinished = ['demo_audio', 'music_generation', 'audio_analysis', 'completed'].includes(currentStage)
   const nodes: Node<AgentData>[] = definitions.map(([kind, label, role, x, y], index) => ({
     id: kind,
@@ -88,33 +103,12 @@ function graphForPreset(
             : 'queued',
     },
   }))
-  const edgePairs: EdgePair[] =
-    preset === 'electronic_instrumental'
-      ? [
-          ['conductor', 'rhythm'] as EdgePair,
-          ['rhythm', 'melody'] as EdgePair,
-          ['melody', 'harmony'] as EdgePair,
-          ['harmony', 'arrange', 'right-source', 'left-target'],
-          ['arrange', 'sound'] as EdgePair,
-          ['sound', 'review', 'bottom-source', 'top-target'],
-          ['review', 'prompt'] as EdgePair,
-        ]
-      : [
-          ['conductor', preset === 'classical_instrumental' || preset === 'soundtrack_score' ? 'melody' : 'lyrics'] as EdgePair,
-          ...(preset === 'classical_instrumental' || preset === 'soundtrack_score' ? [] : [['lyrics', 'melody'] as EdgePair]),
-          ['melody', 'harmony'] as EdgePair,
-          ...(preset === 'classical_instrumental' || preset === 'soundtrack_score' ? [] : [['harmony', 'rhythm', 'bottom-source', 'top-target'] as EdgePair]),
-          [preset === 'classical_instrumental' || preset === 'soundtrack_score' ? 'harmony' : 'rhythm', 'arrange', 'right-source', 'left-target'],
-          ['arrange', 'sound'] as EdgePair,
-          ['sound', 'review', 'bottom-source', 'top-target'],
-          ['review', 'prompt'] as EdgePair,
-        ]
-  const edges = edgePairs.map(([source, target, sourceHandle = 'right-source', targetHandle = 'left-target']) => ({
-    id: `${source}-${target}`,
+  const edges = pipeline.slice(0, -1).map((source, index) => ({
+    id: `${source}-${pipeline[index + 1]}`,
     source,
-    target,
-    sourceHandle,
-    targetHandle,
+    target: pipeline[index + 1],
+    sourceHandle: 'right-source',
+    targetHandle: 'left-target',
     markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
     style: { stroke: '#7b8a82', strokeWidth: 2 },
   }))

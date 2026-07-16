@@ -82,6 +82,10 @@ const presetOptions: Array<{ value: Preset; label: string; description: string }
   { value: 'classical_instrumental', label: '古典器乐', description: '主题、和声、配器与可选乐谱导出' },
   { value: 'electronic_instrumental', label: '电子器乐', description: '节奏先行，突出低频和音色设计' },
   { value: 'soundtrack_score', label: '影视配乐', description: '情绪叙事、空间声景和主题发展' },
+  { value: 'jazz_ensemble', label: '爵士乐团', description: '和声与律动先行，加入即兴和乐手互动' },
+  { value: 'rock_vocal', label: '摇滚人声', description: '歌词、乐队律动和演奏动态协作' },
+  { value: 'folk_acoustic', label: '原声民谣', description: '歌词叙事、原声配器和自然演奏质感' },
+  { value: 'hiphop_vocal', label: '嘻哈人声', description: 'Beat 先行，围绕 Flow、Hook 与低频编排' },
 ]
 
 const genreOptions = ['自动选择', '流行', '摇滚', '电子', 'R&B', '爵士', '古典', '民谣', '嘻哈', '影视配乐', '世界音乐']

@@ -22,6 +22,8 @@ class PromptCompilerAgent(Agent):
                 "melody_plan",
                 "harmony_plan",
                 "rhythm_plan",
+                "improvisation_plan",
+                "performance_plan",
                 "sound_design_plan",
                 "arrangement_plan",
                 "mix_review",
@@ -33,6 +35,8 @@ class PromptCompilerAgent(Agent):
         melody = state.get("melody_plan")
         harmony = state.get("harmony_plan")
         rhythm = state.get("rhythm_plan")
+        improvisation = state.get("improvisation_plan")
+        performance = state.get("performance_plan")
         sound_design = state.get("sound_design_plan")
         arrangement = state.get("arrangement_plan")
         mix_review = state.get("mix_review")
@@ -45,6 +49,9 @@ class PromptCompilerAgent(Agent):
             getattr(melody, "melody_style", "") if melody else "",
             "、".join(getattr(harmony, "chord_progression", []) or []) if harmony else "",
             getattr(rhythm, "groove", "") if rhythm else "",
+            getattr(improvisation, "solo_form", "") if improvisation else "",
+            getattr(performance, "articulation", "") if performance else "",
+            getattr(performance, "dynamics", "") if performance else "",
             "、".join(getattr(sound_design, "palette", []) or []) if sound_design else "",
             "、".join(getattr(arrangement, "instrumentation", []) or []) if arrangement else "",
             getattr(arrangement, "production", "") if arrangement else "",

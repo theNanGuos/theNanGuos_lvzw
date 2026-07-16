@@ -18,9 +18,21 @@ Audio Reference -> Conductor -> Rhythm -> Melody -> Harmony -> Arrange -> Sound 
 
 soundtrack_score:
 Audio Reference -> Conductor -> Melody -> Harmony -> Arrange -> Sound Design -> Mix Review -> Prompt Compiler
+
+jazz_ensemble:
+Audio Reference -> Conductor -> Harmony -> Rhythm -> Melody -> Improvisation -> Performance -> Arrange -> Sound Design -> Mix Review -> Prompt Compiler
+
+rock_vocal:
+Audio Reference -> Conductor -> Lyrics -> Melody -> Harmony -> Rhythm -> Performance -> Arrange -> Sound Design -> Mix Review -> Prompt Compiler
+
+folk_acoustic:
+Audio Reference -> Conductor -> Lyrics -> Melody -> Harmony -> Performance -> Arrange -> Sound Design -> Mix Review -> Prompt Compiler
+
+hiphop_vocal:
+Audio Reference -> Conductor -> Rhythm -> Lyrics -> Melody -> Harmony -> Performance -> Arrange -> Sound Design -> Mix Review -> Prompt Compiler
 ```
 
-Agent 使用 Pydantic 模型传递结构化状态。不同音乐类型会组合不同节点：人声流行包含 Lyrics，电子器乐先做 Rhythm，古典和影视配乐跳过 Lyrics 并可根据 Melody Agent 的 `score_spec` 在项目 `artifacts/` 目录导出 MusicXML 与 MIDI。
+Agent 使用 Pydantic 模型传递结构化状态。不同音乐类型会组合不同节点：人声流行包含 Lyrics，电子器乐先做 Rhythm，古典和影视配乐跳过 Lyrics 并可根据 Melody Agent 的 `score_spec` 在项目 `artifacts/` 目录导出 MusicXML 与 MIDI。爵士先建立和声与 swing 律动，再由 Improvisation 和 Performance 规划独奏、comping 与乐手互动；摇滚、原声民谣和嘻哈则分别围绕乐队动态、叙事演奏和 beat/flow 使用不同节点顺序。
 
 - FastAPI 提供本地项目、音频上传和工作流运行接口。
 - 南郭先生（Chat Agent）按 session 保存独立短期上下文，并把明确偏好规范化后合并到跨 session 用户画像。当前请求和显式创作参数优先于长期偏好。

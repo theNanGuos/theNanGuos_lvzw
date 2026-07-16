@@ -13,9 +13,14 @@ class ArrangeAgent(Agent):
             output_schema=ArrangementOutput,
             input_fields=(
                 "user_request",
+                "workflow",
                 "creative_brief",
                 "lyrics",
                 "melody_plan",
+                "harmony_plan",
+                "rhythm_plan",
+                "improvisation_plan",
+                "performance_plan",
                 "instructions_for_agents",
             ),
         )
@@ -25,7 +30,20 @@ class ArrangeAgent(Agent):
         genre = getattr(brief, "genre", "") if brief else ""
         vocal = getattr(brief, "vocal", False) if brief else False
         production = getattr(brief, "production_style", "") if brief else ""
-        if "古典" in genre or "协奏" in state.get("user_request", ""):
+        workflow = state.get("workflow", "pop_vocal")
+        if workflow == "jazz_ensemble":
+            instruments = ["次中音萨克斯", "钢琴", "低音提琴", "爵士鼓"]
+            texture = "主题采用齐奏或问答，独奏段由节奏组弹性伴奏并逐步增加互动"
+        elif workflow == "rock_vocal":
+            instruments = ["主唱", "双电吉他", "电贝司", "原声鼓组"]
+            texture = "主歌以节奏吉他留出人声空间，副歌展开双轨吉他与完整鼓组"
+        elif workflow == "folk_acoustic":
+            instruments = ["主唱", "原声吉他", "曼陀林", "低音提琴", "轻打击乐"]
+            texture = "以拨弦和叙事人声为中心，乐器用短回应句逐段加入"
+        elif workflow == "hiphop_vocal":
+            instruments = ["说唱人声", "鼓机", "808 贝斯", "采样切片", "氛围键盘"]
+            texture = "verse 保持 beat 与 flow 的留白，hook 加厚人声层和低频重音"
+        elif "古典" in genre or "协奏" in state.get("user_request", ""):
             instruments = ["钢琴", "弦乐组", "低音提琴", "定音鼓"]
             texture = "钢琴主题与弦乐声部交替展开，低音支撑清晰"
         elif vocal:
