@@ -848,7 +848,7 @@ function App() {
 
               <button className="run-button" type="button" disabled={!request.trim() || busy} onClick={handleRun}>
                 {busy ? <LoaderCircle className="spin" size={18} /> : <Play size={18} fill="currentColor" />}
-                {busy ? statusCopy[status] : '召集乐团开始创作'}
+                {busy ? statusCopy[status] : '召集南郭先生们开始创作'}
                 {!busy && <ChevronRight size={17} />}
               </button>
             </section>
@@ -968,7 +968,6 @@ function App() {
             <div className="workflow-toolbar">
               <div>
                 <h2>乐团编排</h2>
-                <p>拖动节点检查当前预设的执行路径</p>
               </div>
               <div className="select-wrap workflow-select">
                 <select value={preset} onChange={(event) => setPreset(event.target.value as Preset)}>

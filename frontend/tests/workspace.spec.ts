@@ -19,7 +19,7 @@ test('keeps controls readable on mobile', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: '与南郭先生对话' })).toBeVisible()
   await page.getByRole('button', { name: '创作台' }).click()
-  await expect(page.getByRole('button', { name: '召集乐团开始创作' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '召集南郭先生们开始创作' })).toBeVisible()
   await expect(page.getByRole('combobox', { name: '流派' })).toBeVisible()
   await page.getByRole('combobox', { name: '流派' }).selectOption('电子')
   await page.getByRole('combobox', { name: '语言' }).selectOption('纯音乐')
