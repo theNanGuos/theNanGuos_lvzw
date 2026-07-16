@@ -292,6 +292,15 @@ def test_chat_session_routes_workflow_and_persists_memory(tmp_path):
     assert payload["project_id"]
     assert payload["run_id"]
     assert len(payload["session"]["messages"]) == 2
+    workflow_run = payload["message"]["workflow_run"]
+    assert workflow_run == {
+        "project_id": payload["project_id"],
+        "run_id": payload["run_id"],
+        "title": "雨夜电子",
+        "preset": "electronic_instrumental",
+    }
+    persisted = client.get(f"/api/sessions/{session['id']}").json()
+    assert persisted["messages"][1]["workflow_run"] == workflow_run
     assert memories.load_profile().preferences[0].value == "纯音乐"
 
     deadline = time.monotonic() + 3

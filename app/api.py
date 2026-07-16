@@ -23,6 +23,7 @@ from models.chat import (
     ChatSessionCreate,
     ChatSessionSummary,
     ChatSessionUpdate,
+    ChatWorkflowRun,
 )
 from models.memory import MemoryContext, PortfolioItem, PortfolioTrack
 from models.project import Asset, Project, ProjectCreate, RunResult
@@ -583,7 +584,19 @@ def create_app(
             if decision.action in {"run_workflow", "revise_project"}:
                 run_id = start_background_run(project.id).id
 
-        assistant_message = ChatMessage(role="assistant", content=decision.reply)
+        workflow_run = None
+        if project_id and run_id:
+            workflow_run = ChatWorkflowRun(
+                project_id=project_id,
+                run_id=run_id,
+                title=project.title,
+                preset=project.preset,
+            )
+        assistant_message = ChatMessage(
+            role="assistant",
+            content=decision.reply,
+            workflow_run=workflow_run,
+        )
         session.messages.append(assistant_message)
         sessions.save_session(session)
         logger.info(

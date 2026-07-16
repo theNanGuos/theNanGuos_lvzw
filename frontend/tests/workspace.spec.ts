@@ -103,6 +103,84 @@ test('switches and manages isolated chat sessions', async ({ page }) => {
   await page.screenshot({ path: '/tmp/nanguos-sessions-mobile.png', fullPage: true })
 })
 
+test('renders a persisted workflow run and playable result inside chat', async ({ page }) => {
+  const now = '2026-07-16T12:00:00Z'
+  const workflowRun = {
+    project_id: 'project-chat',
+    run_id: 'run-chat',
+    title: '霓虹雨夜',
+    preset: 'electronic_instrumental',
+  }
+  const session = {
+    id: 'session-workflow',
+    title: '霓虹雨夜',
+    active_project_id: 'project-chat',
+    messages: [
+      { id: 'm1', role: 'user', content: '生成一首雨夜电子纯音乐', created_at: now },
+      { id: 'm2', role: 'assistant', content: '乐团已经开始创作。', workflow_run: workflowRun, created_at: now },
+    ],
+    created_at: now,
+    updated_at: now,
+  }
+  await page.route('http://127.0.0.1:8000/api/portfolio', (route) => route.fulfill({ json: [] }))
+  await page.route('http://127.0.0.1:8000/api/sessions', (route) => route.fulfill({ json: [session] }))
+  await page.route('http://127.0.0.1:8000/api/sessions/session-workflow', (route) => route.fulfill({ json: session }))
+  await page.route('http://127.0.0.1:8000/api/projects/project-chat', (route) => route.fulfill({
+    json: {
+      id: 'project-chat',
+      title: '霓虹雨夜',
+      user_request: '生成一首雨夜电子纯音乐',
+      preset: 'electronic_instrumental',
+      status: 'completed',
+      progress: 100,
+      current_stage: 'completed',
+      latest_run_id: 'run-chat',
+    },
+  }))
+  await page.route('http://127.0.0.1:8000/api/projects/project-chat/runs/run-chat', (route) => route.fulfill({
+    json: {
+      id: 'run-chat',
+      project_id: 'project-chat',
+      status: 'completed',
+      progress: 100,
+      current_stage: 'completed',
+      state: {
+        workflow: 'electronic_instrumental',
+        generated_tracks: [{
+          title: '霓虹雨夜',
+          source_url: 'https://audio.test/neon.mp3',
+          local_path: '/tmp/neon.mp3',
+          audio_url: '/works/neon.mp3',
+          download_url: '/works/neon.mp3',
+          cover_url: 'http://127.0.0.1:5173/icons.png',
+          style: 'Ambient Electronic',
+          duration_seconds: 180,
+        }],
+        generated_audio_analysis: [{
+          track_title: '霓虹雨夜',
+          waveform_url: 'http://127.0.0.1:5173/icons.png',
+          inspection: { duration_seconds: 180, codec_name: 'mp3', sample_rate: 44100 },
+        }],
+      },
+    },
+  }))
+
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/?session=session-workflow')
+  await expect(page.getByLabel('霓虹雨夜 工作流')).toBeVisible()
+  await expect(page.getByText('电子器乐')).toBeVisible()
+  await expect(page.getByText('已完成')).toBeVisible()
+  await expect(page.locator('.chat-track audio')).toHaveAttribute('src', /works\/neon\.mp3/)
+  await expect(page.getByTitle('下载音乐')).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440)
+  await page.screenshot({ path: '/tmp/nanguos-chat-workflow.png', fullPage: true })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(page.getByLabel('霓虹雨夜 工作流')).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  await page.screenshot({ path: '/tmp/nanguos-chat-workflow-mobile.png', fullPage: true })
+})
+
 test('renders the portfolio as a cover-led music library', async ({ page }) => {
   await page.route('http://127.0.0.1:8000/api/portfolio', async (route) => {
     await route.fulfill({

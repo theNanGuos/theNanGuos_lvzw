@@ -15,7 +15,8 @@ import { AudioWaveform, Drum, Feather, Music, Radio, SlidersHorizontal, Sparkles
 import type { Preset } from '../api'
 import '@xyflow/react/dist/style.css'
 
-type AgentData = { label: string; role: string; kind: string }
+type AgentStatus = 'queued' | 'running' | 'completed' | 'failed'
+type AgentData = { label: string; role: string; kind: string; status: AgentStatus }
 
 const icons = {
   conductor: AudioWaveform,
@@ -32,7 +33,7 @@ const icons = {
 function AgentNode({ data }: NodeProps<Node<AgentData>>) {
   const Icon = icons[data.kind as keyof typeof icons]
   return (
-    <div className={`agent-node ${data.kind}`}>
+    <div className={`agent-node ${data.kind} ${data.status}`}>
       <Handle id="left-target" type="target" position={Position.Left} />
       <Handle id="top-target" type="target" position={Position.Top} />
       <span><Icon size={16} /></span>
@@ -45,7 +46,11 @@ function AgentNode({ data }: NodeProps<Node<AgentData>>) {
 
 const nodeTypes = { agent: AgentNode }
 
-function graphForPreset(preset: Preset): { nodes: Node<AgentData>[]; edges: Edge[] } {
+function graphForPreset(
+  preset: Preset,
+  runStatus: 'idle' | 'running' | 'completed' | 'failed',
+  currentStage: string,
+): { nodes: Node<AgentData>[]; edges: Edge[] } {
   type EdgePair = [string, string, string?, string?]
   const definitions: Array<[string, string, string, number, number]> = [
     ['conductor', '指挥', '分析与分工', 20, 88],
@@ -65,11 +70,23 @@ function graphForPreset(preset: Preset): { nodes: Node<AgentData>[]; edges: Edge
     ['review', '审听', '平衡与风险', 770, 138],
     ['prompt', '提示词', '汇总与编译', 920, 88],
   ]
-  const nodes: Node<AgentData>[] = definitions.map(([kind, label, role, x, y]) => ({
+  const workflowFinished = ['demo_audio', 'music_generation', 'audio_analysis', 'completed'].includes(currentStage)
+  const nodes: Node<AgentData>[] = definitions.map(([kind, label, role, x, y], index) => ({
     id: kind,
     type: 'agent',
     position: { x, y },
-    data: { kind, label, role },
+    data: {
+      kind,
+      label,
+      role,
+      status: runStatus === 'completed' || workflowFinished
+        ? 'completed'
+        : runStatus === 'failed' && index === 0
+          ? 'failed'
+          : runStatus === 'running' && currentStage === 'workflow' && index === 0
+            ? 'running'
+            : 'queued',
+    },
   }))
   const edgePairs: EdgePair[] =
     preset === 'electronic_instrumental'
@@ -104,8 +121,21 @@ function graphForPreset(preset: Preset): { nodes: Node<AgentData>[]; edges: Edge
   return { nodes, edges }
 }
 
-export function WorkflowCanvas({ preset, compact = false }: { preset: Preset; compact?: boolean }) {
-  const graph = useMemo(() => graphForPreset(preset), [preset])
+export function WorkflowCanvas({
+  preset,
+  compact = false,
+  runStatus = 'idle',
+  currentStage = 'draft',
+}: {
+  preset: Preset
+  compact?: boolean
+  runStatus?: 'idle' | 'running' | 'completed' | 'failed'
+  currentStage?: string
+}) {
+  const graph = useMemo(
+    () => graphForPreset(preset, runStatus, currentStage),
+    [currentStage, preset, runStatus],
+  )
   return (
     <ReactFlow
       key={preset}

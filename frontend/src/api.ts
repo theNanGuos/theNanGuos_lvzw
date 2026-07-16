@@ -53,7 +53,15 @@ export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+  workflow_run?: ChatWorkflowRun | null
   created_at: string
+}
+
+export interface ChatWorkflowRun {
+  project_id: string
+  run_id: string
+  title: string
+  preset: Preset
 }
 
 export interface ChatSession {

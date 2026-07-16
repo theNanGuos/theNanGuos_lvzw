@@ -49,6 +49,7 @@ import type {
   RunResult,
 } from './api'
 import { WorkflowCanvas } from './components/WorkflowCanvas'
+import { ChatWorkflowRun } from './components/ChatWorkflowRun'
 import { PortfolioView } from './components/PortfolioView'
 import { SessionList } from './components/SessionList'
 import './App.css'
@@ -526,24 +527,16 @@ function App() {
                   <strong>从一个想法开始</strong>
                 </div>
               ) : chatMessages.map((message) => (
-                <article className={`chat-message ${message.role}`} key={message.id}>
+                <article className={`chat-message ${message.role} ${message.workflow_run ? 'has-workflow' : ''}`} key={message.id}>
                   <span>{message.role === 'user' ? '你' : '南郭先生'}</span>
                   <p>{message.content}</p>
+                  {message.workflow_run && <ChatWorkflowRun reference={message.workflow_run} />}
                 </article>
               ))}
               {chatSending && (
                 <div className="chat-thinking"><LoaderCircle className="spin" size={15} /> 正在处理</div>
               )}
             </div>
-            {(status === 'running' || status === 'completed') && (
-              <div className="chat-progress">
-                <div><strong>{title}</strong><span>{currentStage} · {progress}%</span></div>
-                <i><span style={{ width: `${progress}%` }} /></i>
-                {status === 'completed' && (
-                  <button type="button" onClick={() => setView('compose')}>查看作品 <ChevronRight size={15} /></button>
-                )}
-              </div>
-            )}
             {error && <div className="chat-error">{error}</div>}
             <form className="chat-composer" onSubmit={(event) => { event.preventDefault(); void handleChat() }}>
               <textarea

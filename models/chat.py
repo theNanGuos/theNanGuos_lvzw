@@ -18,10 +18,18 @@ ChatAction = Literal[
 ]
 
 
+class ChatWorkflowRun(BaseModel):
+    project_id: str
+    run_id: str
+    title: str
+    preset: ProjectPreset
+
+
 class ChatMessage(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex)
     role: ChatRole
     content: str = Field(min_length=1, max_length=4000)
+    workflow_run: ChatWorkflowRun | None = None
     created_at: datetime = Field(default_factory=utc_now)
 
 
