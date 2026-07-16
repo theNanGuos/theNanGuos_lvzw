@@ -73,7 +73,7 @@ uv run python main.py "生成一首温暖的中文民谣"
 uv run python main.py "生成一首温暖的中文民谣" --generate
 ```
 
-KIE/Suno provider 按 Kie 文档调用 `POST /api/v1/generate`。提交请求需要 Bearer token、`model`、`customMode`、`instrumental` 和 `callBackUrl`；本项目提交后仍会轮询 `/api/v1/generate/record-info` 下载生成结果。器乐生成会使用 custom mode，因此必须有 `style` 和 `title`，CLI 会优先使用工作流产生的标题和风格。
+KIE/Suno provider 按 Kie 文档调用 `POST /api/v1/generate`。提交请求需要 Bearer token、`model`、`customMode`、`instrumental` 和 `callBackUrl`；本项目提交后仍会轮询 `/api/v1/generate/record-info` 下载生成结果。器乐生成会使用 custom mode，因此必须有 `style` 和 `title`，CLI 会优先使用工作流产生的标题和风格。provider 会在请求前按所选模型自动裁剪 `prompt`、`style` 和 `title`，确保不超过 Kie 的字符限制；发生裁剪时会写入日志。
 
 一键启动本地开发环境：
 

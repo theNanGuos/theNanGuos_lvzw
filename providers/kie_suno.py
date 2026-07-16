@@ -39,7 +39,28 @@ STYLE_LIMITS = {
     "V5": 1000,
     "V5_5": 1000,
 }
+TITLE_LIMIT = 80
+NON_CUSTOM_PROMPT_LIMIT = 500
 logger = get_logger(__name__)
+
+
+def text_length(value: str) -> int:
+    """Count conservatively using UTF-16 code units, as JavaScript APIs commonly do."""
+    return len(value.encode("utf-16-le")) // 2
+
+
+def truncate_text(value: str, limit: int) -> str:
+    if text_length(value) <= limit:
+        return value
+    length = 0
+    result = []
+    for character in value:
+        character_length = text_length(character)
+        if length + character_length > limit:
+            break
+        result.append(character)
+        length += character_length
+    return "".join(result)
 
 
 class SunoTrack(BaseModel):
@@ -125,7 +146,7 @@ class KieSunoProvider:
             )
 
         payload = {
-            "prompt": prompt,
+            "prompt": str(prompt),
             "customMode": use_custom_mode,
             "instrumental": instrumental,
             "model": model,
@@ -134,6 +155,9 @@ class KieSunoProvider:
         if use_custom_mode:
             payload["style"] = (style or os.getenv("KIE_STYLE", "")).strip()
             payload["title"] = (title or os.getenv("KIE_TITLE") or self.default_title(prompt)).strip()
+            self._truncate_payload_field(payload, "prompt", PROMPT_LIMITS[model], model)
+            self._truncate_payload_field(payload, "style", STYLE_LIMITS[model], model)
+            self._truncate_payload_field(payload, "title", TITLE_LIMIT, model)
             self._validate_custom_payload(payload, model, instrumental)
             self._add_optional_custom_fields(
                 payload,
@@ -145,15 +169,20 @@ class KieSunoProvider:
                 persona_id=persona_id,
                 persona_model=persona_model,
             )
-        elif len(prompt) > 500:
-            raise ProviderError("Kie Suno non-custom mode prompt exceeds 500 characters")
+        else:
+            self._truncate_payload_field(
+                payload,
+                "prompt",
+                NON_CUSTOM_PROMPT_LIMIT,
+                "non-custom",
+            )
 
         logger.info(
             "music_task_submit model=%s custom_mode=%s instrumental=%s prompt_length=%s",
             model,
             use_custom_mode,
             instrumental,
-            len(prompt),
+            text_length(str(payload["prompt"])),
         )
         data = await self._request_json("POST", "/api/v1/generate", json=payload)
         try:
@@ -323,6 +352,26 @@ class KieSunoProvider:
         return self.model
 
     @staticmethod
+    def _truncate_payload_field(
+        payload: dict,
+        field: str,
+        limit: int,
+        model: str,
+    ) -> None:
+        value = str(payload.get(field) or "")
+        original_length = text_length(value)
+        if original_length <= limit:
+            return
+        payload[field] = truncate_text(value, limit)
+        logger.warning(
+            "music_payload_truncated field=%s original_length=%s limit=%s model=%s",
+            field,
+            original_length,
+            limit,
+            model,
+        )
+
+    @staticmethod
     def _validate_custom_payload(payload: dict, model: str, instrumental: bool) -> None:
         title = str(payload.get("title") or "")
         style = str(payload.get("style") or "")
@@ -331,13 +380,13 @@ class KieSunoProvider:
             raise ProviderError("Kie Suno custom mode requires style; set KIE_STYLE or pass style")
         if not title:
             raise ProviderError("Kie Suno custom mode requires title; set KIE_TITLE or pass title")
-        if len(title) > 80:
-            raise ProviderError("Kie Suno title exceeds 80 characters")
-        if len(style) > STYLE_LIMITS[model]:
+        if text_length(title) > TITLE_LIMIT:
+            raise ProviderError(f"Kie Suno title exceeds {TITLE_LIMIT} characters")
+        if text_length(style) > STYLE_LIMITS[model]:
             raise ProviderError(f"Kie Suno style exceeds {STYLE_LIMITS[model]} characters for {model}")
         if not instrumental and not prompt:
             raise ProviderError("Kie Suno custom vocal mode requires prompt lyrics")
-        if len(prompt) > PROMPT_LIMITS[model]:
+        if text_length(prompt) > PROMPT_LIMITS[model]:
             raise ProviderError(f"Kie Suno prompt exceeds {PROMPT_LIMITS[model]} characters for {model}")
 
     @staticmethod

@@ -3,7 +3,13 @@ import json
 import httpx
 import pytest
 
-from providers.kie_suno import KieSunoProvider, ProviderError
+from providers.kie_suno import (
+    PROMPT_LIMITS,
+    STYLE_LIMITS,
+    KieSunoProvider,
+    ProviderError,
+    text_length,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -125,6 +131,87 @@ async def test_kie_provider_non_custom_payload_leaves_custom_fields_empty():
         "model": "V4",
         "callBackUrl": "https://app.test/kie/callback",
     }
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model", list(PROMPT_LIMITS))
+async def test_kie_provider_truncates_custom_fields_to_model_limits(monkeypatch, model):
+    requests = []
+    monkeypatch.setenv("KIE_MODEL", model)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"code": 200, "data": {"taskId": "task-1"}})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    provider = KieSunoProvider(api_key="test-key", client=client)
+
+    await provider.submit(
+        "音" * (PROMPT_LIMITS[model] + 1),
+        instrumental=True,
+        custom_mode=True,
+        style="风" * (STYLE_LIMITS[model] + 1),
+        title="题" * 81,
+        callback_url="https://app.test/kie/callback",
+    )
+
+    payload = json.loads(requests[0].content)
+    assert text_length(payload["prompt"]) == PROMPT_LIMITS[model]
+    assert text_length(payload["style"]) == STYLE_LIMITS[model]
+    assert text_length(payload["title"]) == 80
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_kie_provider_truncates_non_custom_prompt_and_omits_custom_fields():
+    requests = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"code": 200, "data": {"taskId": "task-1"}})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    provider = KieSunoProvider(api_key="test-key", client=client)
+
+    await provider.submit(
+        "idea " * 200,
+        instrumental=True,
+        custom_mode=False,
+        style="ignored style",
+        title="ignored title",
+        callback_url="https://app.test/kie/callback",
+    )
+
+    payload = json.loads(requests[0].content)
+    assert text_length(payload["prompt"]) == 500
+    assert "style" not in payload
+    assert "title" not in payload
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_kie_provider_counts_emoji_conservatively_when_truncating():
+    requests = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"code": 200, "data": {"taskId": "task-1"}})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    provider = KieSunoProvider(api_key="test-key", client=client)
+
+    await provider.submit(
+        "prompt",
+        instrumental=True,
+        style="🎵" * 101,
+        title="title",
+        callback_url="https://app.test/kie/callback",
+    )
+
+    payload = json.loads(requests[0].content)
+    assert payload["style"] == "🎵" * 100
+    assert text_length(payload["style"]) == 200
     await client.aclose()
 
 
