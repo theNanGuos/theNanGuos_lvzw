@@ -656,6 +656,12 @@ function App() {
                       <small>{(attachment.size / 1024 / 1024).toFixed(1)} MB</small>
                     </div>
                   ))}
+                  {!!message.remembered_preferences?.length && (
+                    <div className="chat-memory-confirmation">
+                      <Brain size={16} />
+                      <div><strong>偏好已记录</strong><span>{message.remembered_preferences.map((item) => item.value).join('、')}</span></div>
+                    </div>
+                  )}
                   {message.workflow_run && <ChatWorkflowRun reference={message.workflow_run} />}
                 </article>
               ))}

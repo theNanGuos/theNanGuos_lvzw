@@ -229,7 +229,18 @@ test('sends a chat prompt with a persisted audio attachment', async ({ page }) =
           audio_attachments: session.assets,
           created_at: now,
         },
-        { id: 'assistant-1', role: 'assistant', content: '已收到参考音频。', created_at: now },
+        {
+          id: 'assistant-1',
+          role: 'assistant',
+          content: '已收到参考音频。',
+          remembered_preferences: [{
+            kind: 'preference',
+            key: 'vocal_preference',
+            value: '纯音乐',
+            confidence: 0.9,
+          }],
+          created_at: now,
+        },
       ],
     }
     await route.fulfill({
@@ -261,6 +272,8 @@ test('sends a chat prompt with a persisted audio attachment', async ({ page }) =
   await expect(page.getByText('已收到参考音频。')).toBeVisible()
   await expect(page.locator('.chat-audio-attachment').getByText('reference-demo.wav')).toBeVisible()
   await expect(page.getByRole('status')).toContainText('已记住：纯音乐')
+  await expect(page.locator('.chat-memory-confirmation')).toContainText('偏好已记录')
+  await expect(page.locator('.chat-memory-confirmation')).toContainText('纯音乐')
   expect(sentAssetIds).toEqual(['audio-1'])
   await page.screenshot({ path: '/tmp/nanguos-chat-audio.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })

@@ -58,6 +58,7 @@ export interface ChatMessage {
   content: string
   workflow_run?: ChatWorkflowRun | null
   audio_attachments?: ChatAudioAttachment[]
+  remembered_preferences?: MemoryObservation[]
   created_at: string
 }
 
