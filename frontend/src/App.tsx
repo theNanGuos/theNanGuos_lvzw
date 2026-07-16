@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AudioLines,
+  Brain,
   CheckCircle2,
   ChevronRight,
   CircleStop,
@@ -26,7 +27,10 @@ import {
 import {
   createProject,
   createSession,
+  clearMemory,
   deleteSession,
+  deleteMemoryPreference,
+  getMemory,
   getProject,
   getRun,
   getSession,
@@ -38,6 +42,7 @@ import {
   sendChatMessage,
   uploadAsset,
   uploadSessionAsset,
+  updateMemoryPreference,
 } from './api'
 import type {
   ChatMessage,
@@ -49,14 +54,17 @@ import type {
   PortfolioItem,
   Preset,
   RunResult,
+  UserPreference,
+  UserProfile,
 } from './api'
 import { WorkflowCanvas } from './components/WorkflowCanvas'
 import { ChatWorkflowRun } from './components/ChatWorkflowRun'
 import { PortfolioView } from './components/PortfolioView'
 import { SessionList } from './components/SessionList'
+import { MemoryView } from './components/MemoryView'
 import './App.css'
 
-type View = 'chat' | 'compose' | 'portfolio' | 'workflow'
+type View = 'chat' | 'compose' | 'portfolio' | 'memory' | 'workflow'
 type RunStatus = 'idle' | 'creating' | 'uploading' | 'running' | 'completed' | 'failed'
 
 const statusCopy: Record<RunStatus, string> = {
@@ -123,6 +131,9 @@ function App() {
   const [progress, setProgress] = useState(0)
   const [currentStage, setCurrentStage] = useState('draft')
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([])
+  const [memoryProfile, setMemoryProfile] = useState<UserProfile | null>(null)
+  const [memoryLoading, setMemoryLoading] = useState(false)
+  const [memoryNotice, setMemoryNotice] = useState('')
   const [sessionId, setSessionId] = useState('')
   const [chatInput, setChatInput] = useState('')
   const [chatAudio, setChatAudio] = useState<File | null>(null)
@@ -157,6 +168,7 @@ function App() {
   /* oxlint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     void refreshPortfolio()
+    void refreshMemory()
     void initializeSessions()
 
     const handleHistoryChange = () => window.location.reload()
@@ -172,11 +184,65 @@ function App() {
     return () => window.clearInterval(timer)
   }, [hasRunningPortfolioItem])
 
+  useEffect(() => {
+    if (!memoryNotice) return
+    const timer = window.setTimeout(() => setMemoryNotice(''), 3600)
+    return () => window.clearTimeout(timer)
+  }, [memoryNotice])
+
   async function refreshPortfolio() {
     try {
       setPortfolio(await listPortfolio())
     } catch {
       // The primary workspace remains usable when the local API is unavailable.
+    }
+  }
+
+  async function refreshMemory() {
+    setMemoryLoading(true)
+    try {
+      setMemoryProfile(await getMemory())
+    } catch {
+      // Conversation and creation remain available if memory storage cannot be read.
+    } finally {
+      setMemoryLoading(false)
+    }
+  }
+
+  async function handleMemoryUpdate(preference: UserPreference, value: string) {
+    try {
+      const updated = await updateMemoryPreference(preference.key, {
+        value,
+        kind: preference.kind,
+        confidence: preference.confidence,
+      })
+      setMemoryProfile((profile) => profile ? {
+        ...profile,
+        preferences: profile.preferences.map((item) => item.key === updated.key ? updated : item),
+      } : profile)
+      setMemoryNotice(`已更新记忆：${updated.value}`)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '记忆更新失败')
+      throw reason
+    }
+  }
+
+  async function handleMemoryDelete(key: string) {
+    if (!window.confirm('删除这条长期记忆？')) return
+    try {
+      setMemoryProfile(await deleteMemoryPreference(key))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '记忆删除失败')
+    }
+  }
+
+  async function handleMemoryClear() {
+    if (!window.confirm('清空全部长期偏好和创作习惯？此操作不会删除作品。')) return
+    try {
+      setMemoryProfile(await clearMemory())
+      setMemoryNotice('长期记忆已清空')
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '记忆清空失败')
     }
   }
 
@@ -412,6 +478,10 @@ function App() {
       setChatAudio(null)
       if (chatAudioInputRef.current) chatAudioInputRef.current.value = ''
       setChatMessages(response.session.messages)
+      if (response.remembered_preferences?.length) {
+        setMemoryNotice(`已记住：${response.remembered_preferences.map((item) => item.value).join('、')}`)
+        void refreshMemory()
+      }
       setChatSessions((sessions) => [
         sessionSummary(response.session),
         ...sessions.filter((item) => item.id !== response.session.id),
@@ -490,6 +560,9 @@ function App() {
           <button className={view === 'portfolio' ? 'active' : ''} onClick={() => setView('portfolio')}>
             <Library size={17} /> 作品集
           </button>
+          <button className={view === 'memory' ? 'active' : ''} onClick={() => { setView('memory'); void refreshMemory() }}>
+            <Brain size={17} /> 记忆库
+          </button>
           <button className={view === 'workflow' ? 'active' : ''} onClick={() => setView('workflow')}>
             <GitBranch size={17} /> 工作流
           </button>
@@ -505,6 +578,12 @@ function App() {
             onRename={handleRenameSession}
             onDelete={handleDeleteSession}
           />
+        ) : view === 'memory' ? (
+          <div className="sidebar-card">
+            <span>长期记忆</span>
+            <strong>{memoryProfile?.preferences.length ?? 0} 条偏好</strong>
+            <small>在所有会话和自动创作中生效</small>
+          </div>
         ) : (
           <div className="sidebar-card">
             <span>当前乐团</span>
@@ -538,13 +617,15 @@ function App() {
         <header className="topbar">
           <div>
             <div className="eyebrow">MUSIC AGENT STUDIO</div>
-            <h1>{view === 'chat' ? '与南郭先生对话' : view === 'compose' ? '音乐创作工作台' : view === 'portfolio' ? '我的作品集' : '乐团工作流'}</h1>
+            <h1>{view === 'chat' ? '与南郭先生对话' : view === 'compose' ? '音乐创作工作台' : view === 'portfolio' ? '我的作品集' : view === 'memory' ? '长期记忆库' : '乐团工作流'}</h1>
           </div>
           <div className={`run-state ${status}`}>
             {busy ? <LoaderCircle className="spin" size={15} /> : <span className="status-dot" />}
             {statusCopy[status]}
           </div>
         </header>
+
+        {memoryNotice && <div className="memory-notice" role="status"><Brain size={16} /><span>{memoryNotice}</span></div>}
 
         {view === 'chat' ? (
           <section className="chat-panel">
@@ -634,6 +715,17 @@ function App() {
           </section>
         ) : view === 'portfolio' ? (
           <PortfolioView items={portfolio} onOpenProject={(item) => void openPortfolioItem(item)} />
+        ) : view === 'memory' ? (
+          <MemoryView
+            profile={memoryProfile}
+            loading={memoryLoading}
+            onRefresh={refreshMemory}
+            onUpdate={handleMemoryUpdate}
+            onDelete={handleMemoryDelete}
+            onClear={handleMemoryClear}
+            works={portfolio}
+            onOpenWork={(work) => void openPortfolioItem(work)}
+          />
         ) : view === 'compose' ? (
           <div className="compose-layout">
             <section className="brief-panel">

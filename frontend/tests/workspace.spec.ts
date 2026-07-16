@@ -237,6 +237,12 @@ test('sends a chat prompt with a persisted audio attachment', async ({ page }) =
         session,
         message: session.messages[1],
         action: 'chat_only',
+        remembered_preferences: [{
+          kind: 'preference',
+          key: 'vocal_preference',
+          value: '纯音乐',
+          confidence: 0.9,
+        }],
       },
     })
   })
@@ -254,12 +260,71 @@ test('sends a chat prompt with a persisted audio attachment', async ({ page }) =
 
   await expect(page.getByText('已收到参考音频。')).toBeVisible()
   await expect(page.locator('.chat-audio-attachment').getByText('reference-demo.wav')).toBeVisible()
+  await expect(page.getByRole('status')).toContainText('已记住：纯音乐')
   expect(sentAssetIds).toEqual(['audio-1'])
   await page.screenshot({ path: '/tmp/nanguos-chat-audio.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(page.getByRole('button', { name: '上传参考音频' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
   await page.screenshot({ path: '/tmp/nanguos-chat-audio-mobile.png', fullPage: true })
+})
+
+test('manages normalized long-term preferences in the memory library', async ({ page }) => {
+  const now = '2026-07-16T12:00:00Z'
+  let profile = {
+    schema_version: 1,
+    preferences: [{
+      kind: 'preference',
+      key: 'vocal_preference',
+      value: '纯音乐',
+      confidence: 0.95,
+      evidence_count: 2,
+      source_session_ids: ['session-one', 'session-two'],
+      last_seen_at: now,
+    }],
+    workflow_counts: { electronic_instrumental: 4, soundtrack_score: 2 },
+    updated_at: now,
+  }
+  await page.route('http://127.0.0.1:8000/api/portfolio', (route) => route.fulfill({ json: [] }))
+  await page.route('http://127.0.0.1:8000/api/sessions', (route) => route.fulfill({ json: [] }))
+  await page.route('http://127.0.0.1:8000/api/memory**', async (route) => {
+    const request = route.request()
+    if (request.method() === 'PATCH') {
+      const payload = request.postDataJSON() as { value: string }
+      profile = {
+        ...profile,
+        preferences: profile.preferences.map((item) => ({ ...item, value: payload.value })),
+      }
+      await route.fulfill({ json: profile.preferences[0] })
+      return
+    }
+    if (request.method() === 'DELETE' && request.url().includes('/preferences/')) {
+      profile = { ...profile, preferences: [] }
+      await route.fulfill({ json: profile })
+      return
+    }
+    await route.fulfill({ json: profile })
+  })
+
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/')
+  await page.getByRole('button', { name: '记忆库' }).click()
+  await expect(page.getByRole('heading', { name: '长期记忆库' })).toBeVisible()
+  await expect(page.getByText('人声偏好')).toBeVisible()
+  await expect(page.getByText('电子器乐')).toBeVisible()
+
+  await page.getByTitle('编辑').click()
+  await page.getByRole('textbox', { name: '编辑人声偏好' }).fill('人声歌曲')
+  await page.getByTitle('保存').click()
+  await expect(page.getByText('人声歌曲', { exact: true })).toBeVisible()
+  await page.screenshot({ path: '/tmp/nanguos-memory.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  await page.screenshot({ path: '/tmp/nanguos-memory-mobile.png', fullPage: true })
+
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByTitle('删除').click()
+  await expect(page.getByText('还没有长期偏好')).toBeVisible()
 })
 
 test('renders the portfolio as a cover-led music library', async ({ page }) => {

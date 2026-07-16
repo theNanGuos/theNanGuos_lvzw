@@ -100,6 +100,34 @@ export interface ChatResponse {
   action: string
   project_id?: string
   run_id?: string
+  remembered_preferences?: MemoryObservation[]
+}
+
+export type MemoryKind = 'preference' | 'avoidance' | 'habit'
+
+export interface MemoryObservation {
+  kind: MemoryKind
+  key: string
+  value: string
+  confidence: number
+  evidence?: string
+}
+
+export interface UserPreference {
+  kind: MemoryKind
+  key: string
+  value: string
+  confidence: number
+  evidence_count: number
+  source_session_ids: string[]
+  last_seen_at: string
+}
+
+export interface UserProfile {
+  schema_version: number
+  preferences: UserPreference[]
+  workflow_counts: Partial<Record<Preset, number>>
+  updated_at: string
 }
 
 export interface GeneratedTrack {
@@ -181,6 +209,30 @@ export function getRun(projectId: string, runId: string) {
 
 export function listPortfolio() {
   return request<PortfolioItem[]>('/api/portfolio')
+}
+
+export function getMemory() {
+  return request<UserProfile>('/api/memory')
+}
+
+export function updateMemoryPreference(key: string, payload: {
+  value: string
+  kind: MemoryKind
+  confidence: number
+}) {
+  return request<UserPreference>(`/api/memory/preferences/${encodeURIComponent(key)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteMemoryPreference(key: string) {
+  return request<UserProfile>(`/api/memory/preferences/${encodeURIComponent(key)}`, { method: 'DELETE' })
+}
+
+export function clearMemory() {
+  return request<UserProfile>('/api/memory', { method: 'DELETE' })
 }
 
 export function createSession(title = '新会话') {
