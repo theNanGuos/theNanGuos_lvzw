@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 from threading import RLock
 
 from models.memory import (
@@ -68,6 +69,105 @@ def first_match(text: str, choices: dict[str, tuple[str, ...]]) -> str | None:
         (value for value, markers in choices.items() if any(marker in lowered for marker in markers)),
         None,
     )
+
+
+def extract_explicit_preferences(text: str) -> list[MemoryObservation]:
+    signal_markers = ("喜欢", "偏好", "以后", "默认", "通常", "习惯", "一直")
+    clauses = [clause.strip() for clause in re.split(r"[，,。；;！？!?\n]+", text)]
+    preference_clauses = [
+        clause for clause in clauses if any(marker in clause.lower() for marker in signal_markers)
+    ]
+    if not preference_clauses:
+        return []
+
+    preference_text = "，".join(preference_clauses)
+    lowered = preference_text.lower()
+    confidence = 0.95 if any(marker in lowered for marker in ("以后", "默认", "一直")) else 0.85
+    observations: list[MemoryObservation] = []
+    language = first_match(
+        lowered,
+        {
+            "中文": ("中文", "国语", "普通话"),
+            "粤语": ("粤语", "广东话"),
+            "英文": ("英文", "英语", "english"),
+            "日语": ("日语", "日文", "japanese"),
+            "韩语": ("韩语", "韩文", "korean"),
+            "西班牙语": ("西班牙语", "spanish"),
+        },
+    )
+    if language and any(marker in lowered for marker in ("语言", "歌词", "演唱", "唱")):
+        observations.append(
+            MemoryObservation(
+                kind="preference",
+                key="preferred_languages",
+                value=language,
+                confidence=confidence,
+                evidence=text,
+            )
+        )
+
+    if any(marker in lowered for marker in ("纯音乐", "无人声", "无 vocal", "instrumental", "no vocal")):
+        observations.append(
+            MemoryObservation(
+                kind="preference",
+                key="vocal_preference",
+                value="纯音乐",
+                confidence=confidence,
+                evidence=text,
+            )
+        )
+    elif any(marker in lowered for marker in ("人声歌曲", "有人声", "带人声")):
+        observations.append(
+            MemoryObservation(
+                kind="preference",
+                key="vocal_preference",
+                value="人声歌曲",
+                confidence=confidence,
+                evidence=text,
+            )
+        )
+
+    genre = first_match(
+        lowered,
+        {
+            "流行": ("流行", "pop"),
+            "摇滚": ("摇滚", "rock"),
+            "电子": ("电子", "electronic"),
+            "R&B": ("r&b", "节奏布鲁斯"),
+            "爵士": ("爵士", "jazz"),
+            "古典": ("古典", "classical"),
+            "民谣": ("民谣", "folk"),
+            "嘻哈": ("嘻哈", "hip-hop", "hip hop"),
+            "影视配乐": ("影视配乐", "电影配乐", "soundtrack"),
+        },
+    )
+    if genre and any(marker in lowered for marker in ("流派", "风格", "音乐")):
+        observations.append(
+            MemoryObservation(
+                kind="preference",
+                key="preferred_genres",
+                value=genre,
+                confidence=confidence,
+                evidence=text,
+            )
+        )
+
+    instruments = [
+        instrument
+        for instrument in ("钢琴", "原声吉他", "电吉他", "弦乐", "管弦乐", "合成器", "鼓组", "贝斯", "民族乐器")
+        if instrument in preference_text
+    ]
+    if instruments:
+        observations.append(
+            MemoryObservation(
+                kind="preference",
+                key="preferred_instruments",
+                value="、".join(instruments),
+                confidence=confidence,
+                evidence=text,
+            )
+        )
+    return observations
 
 
 class LocalMemoryStore:

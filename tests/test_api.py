@@ -409,6 +409,35 @@ def test_chat_sessions_keep_context_separate_and_support_management(tmp_path):
     assert "messages" not in listed_sessions[0]
 
 
+def test_explicit_preference_is_persisted_and_attached_to_chat_message(tmp_path):
+    memories = LocalMemoryStore(tmp_path / "memory" / "user_profile.json")
+    app = create_app(
+        store=LocalProjectStore(tmp_path / "projects"),
+        session_store=LocalSessionStore(tmp_path / "sessions"),
+        memory_store=memories,
+        runner_factory=lambda: FakeRunner(),
+        chat_agent_factory=lambda: FakeConversationAgent(),
+        music_generator=FakeMusicGenerator(),
+        demo_renderer=fake_demo,
+        audio_analyzer=fake_summary,
+        works_root=tmp_path / "works",
+    )
+    client = TestClient(app)
+    session = client.post("/api/sessions", json={"title": "粤语偏好"}).json()
+
+    response = client.post(
+        f"/api/sessions/{session['id']}/messages",
+        json={"content": "我喜欢使用粤语作为创作语言"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["remembered_preferences"][0]["key"] == "preferred_languages"
+    assert payload["remembered_preferences"][0]["value"] == "粤语"
+    assert payload["message"]["remembered_preferences"] == payload["remembered_preferences"]
+    assert memories.load_profile().preferences[0].value == "粤语"
+
+
 def test_app_startup_marks_orphaned_local_run_as_interrupted(tmp_path):
     store = LocalProjectStore(tmp_path / "projects")
     project = store.create_project(

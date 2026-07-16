@@ -1,4 +1,4 @@
-from app.memory import LocalMemoryStore
+from app.memory import LocalMemoryStore, extract_explicit_preferences
 from models.memory import MemoryObservation, PreferenceUpdate
 from models.project import Project
 
@@ -11,6 +11,20 @@ def observation(key: str, value: str, confidence: float = 0.8) -> MemoryObservat
         confidence=confidence,
         evidence="test",
     )
+
+
+def test_explicit_language_preference_is_extracted_without_model_help():
+    observations = extract_explicit_preferences("我喜欢使用粤语作为创作语言")
+
+    assert len(observations) == 1
+    assert observations[0].key == "preferred_languages"
+    assert observations[0].value == "粤语"
+    assert observations[0].confidence == 0.85
+
+    mixed = extract_explicit_preferences("以后默认做纯音乐，这次生成雨夜氛围电子曲")
+    assert [(item.key, item.value) for item in mixed] == [
+        ("vocal_preference", "纯音乐")
+    ]
 
 
 def test_memory_normalizes_reinforces_and_replaces_preferences(tmp_path):

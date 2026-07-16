@@ -39,6 +39,7 @@ class ChatMessage(BaseModel):
     content: str = Field(min_length=1, max_length=4000)
     workflow_run: ChatWorkflowRun | None = None
     audio_attachments: list[ChatAudioAttachment] = Field(default_factory=list)
+    remembered_preferences: list[MemoryObservation] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utc_now)
 
 

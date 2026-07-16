@@ -10,7 +10,13 @@ from fastapi.staticfiles import StaticFiles
 from agents.chat import ChatAgent
 from agents.init import create_llm
 from app.graph import build_graph
-from app.memory import LocalMemoryStore, MemoryNotFoundError, canonical_key, normalized_value
+from app.memory import (
+    LocalMemoryStore,
+    MemoryNotFoundError,
+    canonical_key,
+    extract_explicit_preferences,
+    normalized_value,
+)
 from app.session_store import LocalSessionStore, SessionNotFoundError
 from app.storage import LocalProjectStore, ProjectNotFoundError
 from lib.logging_config import get_logger, log_context, setup_logging
@@ -654,16 +660,19 @@ def create_app(
             logger.exception("chat_agent_failed session_id=%s", session_id)
             raise HTTPException(status_code=500, detail=f"南郭先生响应失败: {exc}") from exc
 
-        remembered_preferences = []
-        for observation in decision.memory_observations:
+        normalized_observations = {}
+        candidates = [
+            *decision.memory_observations,
+            *extract_explicit_preferences(payload.content),
+        ]
+        for observation in candidates:
             key = canonical_key(observation.key)
             if key is None:
                 continue
-            remembered_preferences.append(
-                observation.model_copy(
-                    update={"key": key, "value": normalized_value(key, observation.value)}
-                )
+            normalized_observations[key] = observation.model_copy(
+                update={"key": key, "value": normalized_value(key, observation.value)}
             )
+        remembered_preferences = list(normalized_observations.values())
         if remembered_preferences:
             memories.merge_observations(
                 remembered_preferences,
@@ -721,6 +730,7 @@ def create_app(
             role="assistant",
             content=decision.reply,
             workflow_run=workflow_run,
+            remembered_preferences=remembered_preferences,
         )
         session.messages.append(assistant_message)
         sessions.save_session(session)
