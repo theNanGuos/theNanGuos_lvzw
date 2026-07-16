@@ -517,7 +517,7 @@ def create_app(
             decision = ChatDecision.model_validate(raw_decision)
         except Exception as exc:
             logger.exception("chat_agent_failed session_id=%s", session_id)
-            raise HTTPException(status_code=500, detail=f"Chat Agent failed: {exc}") from exc
+            raise HTTPException(status_code=500, detail=f"南郭先生响应失败: {exc}") from exc
 
         if decision.memory_observations:
             memories.merge_observations(

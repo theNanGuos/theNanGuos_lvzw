@@ -1,4 +1,5 @@
 from agents.arrange import ArrangeAgent
+from agents.chat import ChatAgent
 from agents.conductor import ConductorAgent
 from agents.lyrics import LyricsAgent
 from agents.melody import MelodyAgent
@@ -40,3 +41,13 @@ def test_agents_load_role_specific_skills():
     assert "arrangement-audio-analysis" in ArrangeAgent(llm).system_prompt
     assert "suno-prompt-tool-handoff" in PromptCompilerAgent(llm).system_prompt
     assert "lyrics-reference-audio" not in ArrangeAgent(llm).system_prompt
+
+
+def test_chat_agent_uses_nanguo_identity_prompt():
+    agent = ChatAgent(object())
+
+    assert agent.name == "南郭先生"
+    assert "你是“南郭先生”" in agent.system_prompt
+    assert "南郭乐团的对外代表" in agent.system_prompt
+    assert "不要自称 Chat Agent" in agent.system_prompt
+    assert "previous_works" in agent.system_prompt

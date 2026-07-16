@@ -288,7 +288,7 @@ function App() {
         <header className="topbar">
           <div>
             <div className="eyebrow">MUSIC AGENT STUDIO</div>
-            <h1>{view === 'chat' ? '音乐创作对话' : view === 'compose' ? '音乐创作工作台' : view === 'portfolio' ? '我的作品集' : '乐团工作流'}</h1>
+            <h1>{view === 'chat' ? '与南郭先生对话' : view === 'compose' ? '音乐创作工作台' : view === 'portfolio' ? '我的作品集' : '乐团工作流'}</h1>
           </div>
           <div className={`run-state ${status}`}>
             {busy ? <LoaderCircle className="spin" size={15} /> : <span className="status-dot" />}
@@ -300,8 +300,8 @@ function App() {
           <section className="chat-panel">
             <div className="chat-heading">
               <div>
-                <span>CHAT AGENT</span>
-                <h2>和乐团聊聊你的下一首作品</h2>
+                <span>南郭乐团代表</span>
+                <h2>南郭先生</h2>
               </div>
               <MessageSquare size={20} />
             </div>
@@ -313,7 +313,7 @@ function App() {
                 </div>
               ) : chatMessages.map((message) => (
                 <article className={`chat-message ${message.role}`} key={message.id}>
-                  <span>{message.role === 'user' ? '你' : 'Chat Agent'}</span>
+                  <span>{message.role === 'user' ? '你' : '南郭先生'}</span>
                   <p>{message.content}</p>
                 </article>
               ))}

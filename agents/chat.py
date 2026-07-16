@@ -8,7 +8,7 @@ from models.chat import ChatDecision
 class ChatAgent(Agent):
     def __init__(self, llm: BaseChatModel):
         super().__init__(
-            name="Chat Agent",
+            name="南郭先生",
             llm=llm,
             system_prompt=chat(),
             output_schema=ChatDecision,
