@@ -2,7 +2,7 @@ from typing import Literal, TypedDict
 
 from pydantic import BaseModel, Field
 
-from models.memory import MemoryContext
+from models.memory import EffectiveCreativePreferences, MemoryContext
 
 WorkflowName = Literal[
     "pop_vocal",
@@ -151,6 +151,7 @@ class State(TypedDict, total=False):
     session_id: str
     project_id: str
     memory_context: MemoryContext
+    effective_preferences: EffectiveCreativePreferences
     user_request: str
     preset: Literal[
         "auto",

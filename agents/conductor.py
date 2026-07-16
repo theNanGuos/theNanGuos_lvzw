@@ -11,5 +11,5 @@ class ConductorAgent(Agent):
             llm = llm,
             system_prompt=with_skills(conductor(), "conductor-tool-routing"),
             output_schema=ConductorOutput,
-            input_fields=("user_request", "preset", "memory_context"),
+            input_fields=("user_request", "preset", "memory_context", "effective_preferences"),
         )

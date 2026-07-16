@@ -16,6 +16,7 @@ class PromptCompilerAgent(Agent):
             input_fields=(
                 "user_request",
                 "memory_context",
+                "effective_preferences",
                 "creative_brief",
                 "lyrics",
                 "melody_plan",

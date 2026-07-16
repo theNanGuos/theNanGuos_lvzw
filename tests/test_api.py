@@ -180,7 +180,7 @@ def test_project_lifecycle_is_persisted_locally(tmp_path):
     assert generator.inputs[0]["instrumental"] is True
     assert runner.inputs[0]["preset"] == "classical_instrumental"
     assert "流派：古典" in runner.inputs[0]["user_request"]
-    assert "语言：纯音乐" in runner.inputs[0]["user_request"]
+    assert "人声：纯音乐" in runner.inputs[0]["user_request"]
     assert "主要乐器：钢琴、弦乐" in runner.inputs[0]["user_request"]
 
     saved_project = json.loads(
@@ -306,6 +306,7 @@ def test_chat_session_routes_workflow_and_persists_memory(tmp_path):
     assert payload["action"] == "run_workflow"
     assert payload["project_id"]
     assert payload["run_id"]
+    assert payload["remembered_preferences"][0]["key"] == "vocal_preference"
     assert len(payload["session"]["messages"]) == 2
     workflow_run = payload["message"]["workflow_run"]
     assert workflow_run == {
@@ -342,6 +343,19 @@ def test_chat_session_routes_workflow_and_persists_memory(tmp_path):
     assert portfolio[0]["tracks"][0]["cover_url"] == "/works/generated.jpg"
     assert portfolio[0]["tracks"][0]["duration_seconds"] == 123.4
     assert portfolio[0]["tracks"][0]["style"] == "cinematic piano"
+
+    memory = client.get("/api/memory")
+    assert memory.status_code == 200
+    assert memory.json()["preferences"][0]["key"] == "vocal_preference"
+    updated = client.patch(
+        "/api/memory/preferences/vocal_preference",
+        json={"value": "人声歌曲", "kind": "preference", "confidence": 1},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["value"] == "人声歌曲"
+    deleted = client.delete("/api/memory/preferences/vocal_preference")
+    assert deleted.status_code == 200
+    assert deleted.json()["preferences"] == []
 
 
 def test_chat_sessions_keep_context_separate_and_support_management(tmp_path):

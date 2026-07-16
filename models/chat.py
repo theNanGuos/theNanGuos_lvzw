@@ -98,3 +98,4 @@ class ChatResponse(BaseModel):
     action: ChatAction
     project_id: str | None = None
     run_id: str | None = None
+    remembered_preferences: list[MemoryObservation] = Field(default_factory=list)

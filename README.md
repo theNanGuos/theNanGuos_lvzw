@@ -23,8 +23,8 @@ Audio Reference -> Conductor -> Melody -> Harmony -> Arrange -> Sound Design -> 
 Agent 使用 Pydantic 模型传递结构化状态。不同音乐类型会组合不同节点：人声流行包含 Lyrics，电子器乐先做 Rhythm，古典和影视配乐跳过 Lyrics 并可根据 Melody Agent 的 `score_spec` 在项目 `artifacts/` 目录导出 MusicXML 与 MIDI。
 
 - FastAPI 提供本地项目、音频上传和工作流运行接口。
-- 南郭先生（Chat Agent）按 session 保存独立短期上下文，并把明确偏好合并到跨 session 用户画像。前端支持新建、切换、重命名、删除和通过 URL 恢复会话；删除会话不会删除关联作品。
-- React 工作区提供对话入口、独立作品集页面、后台生成进度、项目恢复、精确创作表单和工作流画布。
+- 南郭先生（Chat Agent）按 session 保存独立短期上下文，并把明确偏好规范化后合并到跨 session 用户画像。当前请求和显式创作参数优先于长期偏好。
+- React 工作区提供对话入口、独立作品集与记忆库页面、后台生成进度、项目恢复、精确创作表单和工作流画布。记忆库支持查看、编辑、删除和清空长期偏好。
 - KIE/Suno 接入通过独立 provider 封装，默认不会产生真实请求。
 
 ## 环境
@@ -84,6 +84,8 @@ KIE/Suno provider 按 Kie 文档调用 `POST /api/v1/generate`。提交请求需
 脚本会在缺少 `.venv` 或 `frontend/node_modules` 时自动安装依赖，并同时启动后端和前端。API 默认位于 `http://127.0.0.1:8000`，交互文档位于 `/docs`，创作工作台位于 `http://127.0.0.1:5173`。按 `Ctrl+C` 会停止两个开发服务。
 前端默认进入“南郭先生”对话。南郭先生代表南郭乐团理解用户需求、读取记忆，并且只会选择白名单动作与预设工作流；对话消息可以附带参考音频，附件会随作品进入 Audio Reference Agent 分析。当用户要求开始创作时，后端立即返回 run id，并在本地后台线程中执行工作流。前端轮询 Run 状态显示阶段进度。生成完成后，Suno 音频和封面会分别以歌曲名称保存到 `works/` 下，并在独立作品集页面展示封面、风格、时长、进度、播放和下载入口。创作台可以选择流派、语言、主要乐器、预设乐团并上传 demo 音频。
 
+长期记忆保存在 `data/memory/user_profile.json`，包括规范化偏好和工作流使用次数。相同偏好会增加证据次数和置信度，同一偏好 key 的新明确值会替换旧值。创作前系统会生成 `effective_preferences`：预设乐团与创作台显式参数优先，其次是当前请求，最后才使用长期默认值。新偏好写入后前端会显示轻量提示，并可在“记忆库”页面管理。
+
 如需手动启动，分别运行：
 
 ```bash
@@ -101,6 +103,8 @@ npm run dev
 - `POST /api/sessions/{id}/assets`：上传随对话消息发送的参考音频。
 - `GET /api/sessions`、`GET/PATCH/DELETE /api/sessions/{id}`：列出、恢复、重命名和删除独立会话。
 - `GET /api/portfolio`：读取已完成和正在生成的本地作品。
+- `GET/DELETE /api/memory`：读取或清空本地长期记忆。
+- `PATCH/DELETE /api/memory/preferences/{key}`：编辑或删除单条长期偏好。
 - `POST /api/projects/{id}/runs/async`：启动后台运行并立即返回 Run。
 - `GET /api/projects/{id}/runs/{run_id}`：读取进度、阶段、错误和最终产物。
 运行日志默认写入 `_logs/`，包括 API 工作流阶段、Agent 结构化输出、KIE/Suno 提交和轮询状态，可通过上面的 `LOG_*` 环境变量调整。

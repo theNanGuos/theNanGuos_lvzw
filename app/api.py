@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from agents.chat import ChatAgent
 from agents.init import create_llm
 from app.graph import build_graph
-from app.memory import LocalMemoryStore
+from app.memory import LocalMemoryStore, MemoryNotFoundError, canonical_key, normalized_value
 from app.session_store import LocalSessionStore, SessionNotFoundError
 from app.storage import LocalProjectStore, ProjectNotFoundError
 from lib.logging_config import get_logger, log_context, setup_logging
@@ -26,7 +26,15 @@ from models.chat import (
     ChatSessionUpdate,
     ChatWorkflowRun,
 )
-from models.memory import MemoryContext, PortfolioItem, PortfolioTrack
+from models.memory import (
+    EffectiveCreativePreferences,
+    MemoryContext,
+    PortfolioItem,
+    PortfolioTrack,
+    PreferenceUpdate,
+    UserPreference,
+    UserProfile,
+)
 from models.project import Asset, Project, ProjectCreate, RunResult
 from providers.base import GeneratedTrack
 from tools.audio import ToolExecutionError, summarize_generated_audio
@@ -92,17 +100,26 @@ def generation_options(state: dict, project: Project) -> dict[str, object]:
     }
 
 
-def workflow_request(project: Project) -> str:
-    preferences = []
-    if project.genre != "auto":
-        preferences.append(f"流派：{project.genre}")
-    if project.language != "auto":
-        preferences.append(f"语言：{project.language}")
-    if project.instruments:
-        preferences.append(f"主要乐器：{'、'.join(project.instruments)}")
-    if not preferences:
+def workflow_request(
+    project: Project,
+    resolved: EffectiveCreativePreferences,
+) -> str:
+    parameters = []
+    if resolved.genre:
+        parameters.append(f"流派：{resolved.genre}")
+    if resolved.vocal is not None:
+        parameters.append("人声：人声歌曲" if resolved.vocal else "人声：纯音乐")
+    if resolved.language and resolved.vocal is not False:
+        parameters.append(f"语言：{resolved.language}")
+    if resolved.instruments:
+        parameters.append(f"主要乐器：{'、'.join(resolved.instruments)}")
+    if resolved.default_duration:
+        parameters.append(f"默认时长：{resolved.default_duration}")
+    if resolved.production_style:
+        parameters.append(f"制作风格：{resolved.production_style}")
+    if not parameters:
         return project.user_request
-    return f"{project.user_request}\n\n创作参数：{'；'.join(preferences)}"
+    return f"{project.user_request}\n\n创作参数：{'；'.join(parameters)}"
 
 
 def generated_track_payload(track: GeneratedTrack, works_root: Path) -> dict[str, object]:
@@ -300,12 +317,14 @@ def create_app(
             logger.info("workflow_started preset=%s run_id=%s", project.preset, run.id if run else "sync")
             try:
                 update_progress(project_id, run, 10, "workflow")
+                effective_preferences = memories.resolve_preferences(project)
                 result = get_workflow_runner().invoke(
                     {
                         "project_id": project_id,
-                        "user_request": workflow_request(project),
+                        "user_request": workflow_request(project, effective_preferences),
                         "preset": project.preset,
                         "memory_context": memory_context(),
+                        "effective_preferences": effective_preferences,
                         "artifact_dir": str(project_store.artifact_dir(project_id)),
                         "reference_audio_paths": [
                             str(project_store.asset_file_path(project_id, asset))
@@ -428,6 +447,33 @@ def create_app(
     @app.get("/api/portfolio", response_model=list[PortfolioItem])
     def list_portfolio() -> list[PortfolioItem]:
         return memory_context().previous_works
+
+    @app.get("/api/memory", response_model=UserProfile)
+    def read_memory() -> UserProfile:
+        return memories.load_profile()
+
+    @app.patch("/api/memory/preferences/{key}", response_model=UserPreference)
+    def update_memory_preference(key: str, payload: PreferenceUpdate) -> UserPreference:
+        try:
+            preference = memories.update_preference(key, payload)
+        except MemoryNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="Memory preference not found") from exc
+        logger.info("memory_preference_updated key=%s", preference.key)
+        return preference
+
+    @app.delete("/api/memory/preferences/{key}", response_model=UserProfile)
+    def delete_memory_preference(key: str) -> UserProfile:
+        try:
+            profile = memories.delete_preference(key)
+        except MemoryNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="Memory preference not found") from exc
+        logger.info("memory_preference_deleted key=%s", key)
+        return profile
+
+    @app.delete("/api/memory", response_model=UserProfile)
+    def clear_memory() -> UserProfile:
+        logger.info("memory_cleared")
+        return memories.clear()
 
     @app.post("/api/projects", response_model=Project, status_code=status.HTTP_201_CREATED)
     def create_project(payload: ProjectCreate) -> Project:
@@ -608,15 +654,25 @@ def create_app(
             logger.exception("chat_agent_failed session_id=%s", session_id)
             raise HTTPException(status_code=500, detail=f"南郭先生响应失败: {exc}") from exc
 
-        if decision.memory_observations:
+        remembered_preferences = []
+        for observation in decision.memory_observations:
+            key = canonical_key(observation.key)
+            if key is None:
+                continue
+            remembered_preferences.append(
+                observation.model_copy(
+                    update={"key": key, "value": normalized_value(key, observation.value)}
+                )
+            )
+        if remembered_preferences:
             memories.merge_observations(
-                decision.memory_observations,
+                remembered_preferences,
                 session_id=session_id,
             )
             logger.info(
                 "memory_observations_merged session_id=%s count=%s",
                 session_id,
-                len(decision.memory_observations),
+                len(remembered_preferences),
             )
 
         project_id: str | None = None
@@ -681,6 +737,7 @@ def create_app(
             action=decision.action,
             project_id=project_id,
             run_id=run_id,
+            remembered_preferences=remembered_preferences,
         )
 
     return app

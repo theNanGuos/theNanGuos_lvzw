@@ -27,6 +27,7 @@ class UserPreference(BaseModel):
 
 
 class UserProfile(BaseModel):
+    schema_version: int = 1
     preferences: list[UserPreference] = Field(default_factory=list)
     workflow_counts: dict[ProjectPreset, int] = Field(default_factory=dict)
     updated_at: datetime = Field(default_factory=utc_now)
@@ -58,3 +59,19 @@ class MemoryContext(BaseModel):
     preferences: list[UserPreference] = Field(default_factory=list)
     workflow_counts: dict[ProjectPreset, int] = Field(default_factory=dict)
     previous_works: list[PortfolioItem] = Field(default_factory=list)
+
+
+class PreferenceUpdate(BaseModel):
+    value: str = Field(min_length=1, max_length=300)
+    kind: MemoryKind = "preference"
+    confidence: float = Field(default=1.0, ge=0, le=1)
+
+
+class EffectiveCreativePreferences(BaseModel):
+    vocal: bool | None = None
+    genre: str | None = None
+    language: str | None = None
+    instruments: list[str] = Field(default_factory=list)
+    default_duration: str | None = None
+    production_style: str | None = None
+    sources: dict[str, str] = Field(default_factory=dict)
