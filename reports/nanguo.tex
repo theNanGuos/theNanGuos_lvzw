@@ -209,7 +209,7 @@ return {
     \end{tabularx}
 \end{table}
 
-图~\ref{fig:pop-flow}--\ref{fig:soundtrack-flow} 对比了三种典型画布。流行人声需要作词，并在旋律、和声、节奏之后编曲；古典器乐和影视配乐跳过作词及常规鼓点路径，围绕主题旋律、和声张力、配器和音色展开。电子器乐则把 Rhythm 放到 Melody 之前，先建立 Groove 与能量骨架。画布显示面向用户的核心创作节点，后端实际执行还包括前置参考分析以及古典路径的可选乐谱导出。
+图~\ref{fig:pop-flow}--\ref{fig:soundtrack-flow} 对比了三种典型画布。流行人声先完成作词，再依次规划旋律、和声与节奏；嘻哈人声则把 Rhythm 放在 Lyrics 之前，先建立 beat 与 flow 的节奏骨架，并在编曲前增加 Performance 规划以控制说唱咬字、动态和人性化细节；影视配乐跳过作词及常规人声路径，围绕主题旋律、和声张力、配器和空间音色展开。画布显示面向用户的核心创作节点，后端实际执行还包括前置的参考音频分析。
 
 \begin{figure}[H]
     \centering
@@ -220,9 +220,9 @@ return {
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{images/古典器乐编排.png}
-    \caption{古典器乐工作流：跳过作词并保留乐谱导出能力}
-    \label{fig:classical-flow}
+    \includegraphics[width=\textwidth]{images/嘻哈人声编排.png}
+    \caption{嘻哈人声工作流：节奏先行并加入演奏规划}
+    \label{fig:hiphop-flow}
 \end{figure}
 
 \begin{figure}[H]
@@ -441,7 +441,7 @@ LocalProjectStore、LocalSessionStore 和 LocalMemoryStore 分别成为各自目
         \midrule
         E1 & 流行/摇滚人声作品 & 路径包含 Lyrics，生成内容包含语言和 Hook，最终可播放。 \\
         E2 & 电子纯音乐 & Rhythm 先于 Melody；不进入 Lyrics；生成中间 Demo、两条音频和波形。 \\
-        E3 & 古典器乐与影视配乐 & 均跳过 Lyrics；古典满足 ScoreSpec 时可导出乐谱；影视侧重叙事和空间音色。 \\
+        E3 & 嘻哈人声与影视配乐 & 嘻哈路径由 Rhythm 先建立 beat，再进入 Lyrics 并包含 Performance；影视路径跳过 Lyrics。 \\
         E4 & 已记录纯音乐偏好后要求粤语人声 & 当前明确请求覆盖长期偏好，选择人声工作流。 \\
         E5 & 明确提出以后使用英语 & 写入/替换语言偏好，记忆库显示值、置信度和证据次数。 \\
         E6 & 上传参考音频 & 只能按资产索引调用探测/预览/波形工具，不允许任意路径。 \\
@@ -452,7 +452,7 @@ LocalProjectStore、LocalSessionStore 和 LocalMemoryStore 分别成为各自目
 
 \subsection{工作流差异实验}
 
-E1 中，人声任务的画布由指挥进入作词，再逐步进入作曲、和声、节奏与编曲，说明歌词不是在最后附加的一段文本，而是旋律与编曲的上游状态。E2 中，雨夜电子纯音乐自动选择电子器乐乐团，节奏节点提前建立 Groove，完整工作台显示状态经历建档、参考、生成和完成；最终获得一个 12 秒 Demo 与两条 3:59 音频。E3 中，古典与影视路径均正确跳过 Lyrics，避免器乐提示词混入演唱要求。
+E1 中，流行人声任务的画布由指挥进入作词，再逐步进入作曲、和声、节奏与编曲，说明歌词不是在最后附加的一段文本，而是旋律与编曲的上游状态。E2 中，雨夜电子纯音乐自动选择电子器乐乐团，节奏节点提前建立 Groove，完整工作台显示状态经历建档、参考、生成和完成；最终获得一个 12 秒 Demo 与两条 3:59 音频。E3 进一步体现了路径顺序的领域差异：嘻哈人声在作词前先建立 beat 和能量曲线，并通过 Performance 约束 flow、动态与人性化；影视配乐则正确跳过 Lyrics，避免器乐提示词混入演唱要求。
 
 这些结果说明条件图能够根据任务改变分工顺序，而不是所有 Agent 无条件运行。角色复用也控制了实现复杂度：例如同一个 Harmony Agent 可在流行、古典、电子和爵士中工作，但其读取到的上游状态与指挥指令不同。另一方面，当前前端对古典与影视的核心节点展示较相似，尚未把 Score Export 等后端可选节点直接显示出来，用户对两者细粒度差异的感知仍可增强。
 
