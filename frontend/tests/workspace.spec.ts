@@ -20,6 +20,11 @@ test('keeps controls readable on mobile', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '与南郭先生对话' })).toBeVisible()
   await page.getByRole('button', { name: '创作台' }).click()
   await expect(page.getByRole('button', { name: '召集乐团开始创作' })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: '流派' })).toBeVisible()
+  await page.getByRole('combobox', { name: '流派' }).selectOption('电子')
+  await page.getByRole('combobox', { name: '语言' }).selectOption('纯音乐')
+  await page.getByRole('button', { name: '合成器' }).click()
+  await expect(page.getByRole('button', { name: '合成器' })).toHaveAttribute('aria-pressed', 'true')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
   await page.screenshot({ path: '/tmp/nanguos-mobile.png', fullPage: true })
 })
@@ -179,6 +184,77 @@ test('renders a persisted workflow run and playable result inside chat', async (
   await expect(page.getByLabel('霓虹雨夜 工作流')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
   await page.screenshot({ path: '/tmp/nanguos-chat-workflow-mobile.png', fullPage: true })
+})
+
+test('sends a chat prompt with a persisted audio attachment', async ({ page }) => {
+  const now = '2026-07-16T12:00:00Z'
+  let session = {
+    id: 'session-upload',
+    title: '参考音频创作',
+    messages: [] as Array<Record<string, unknown>>,
+    assets: [] as Array<Record<string, unknown>>,
+    created_at: now,
+    updated_at: now,
+  }
+  let sentAssetIds: string[] = []
+  await page.route('http://127.0.0.1:8000/api/portfolio', (route) => route.fulfill({ json: [] }))
+  await page.route('http://127.0.0.1:8000/api/sessions', async (route) => {
+    if (route.request().method() === 'POST') {
+      await route.fulfill({ status: 201, json: session })
+      return
+    }
+    await route.fulfill({ json: session.messages.length ? [session] : [] })
+  })
+  await page.route('http://127.0.0.1:8000/api/sessions/session-upload/assets', async (route) => {
+    const attachment = {
+      id: 'audio-1',
+      filename: 'reference-demo.wav',
+      path: 'assets/audio-1.wav',
+      content_type: 'audio/wav',
+      size: 12,
+    }
+    session = { ...session, assets: [attachment] }
+    await route.fulfill({ status: 201, json: attachment })
+  })
+  await page.route('http://127.0.0.1:8000/api/sessions/session-upload/messages', async (route) => {
+    const payload = route.request().postDataJSON() as { content: string; asset_ids: string[] }
+    sentAssetIds = payload.asset_ids
+    session = {
+      ...session,
+      messages: [
+        {
+          id: 'user-1',
+          role: 'user',
+          content: payload.content,
+          audio_attachments: session.assets,
+          created_at: now,
+        },
+        { id: 'assistant-1', role: 'assistant', content: '已收到参考音频。', created_at: now },
+      ],
+    }
+    await route.fulfill({
+      json: {
+        session,
+        message: session.messages[1],
+        action: 'chat_only',
+      },
+    })
+  })
+
+  await page.goto('/')
+  await page.locator('.chat-file-input').setInputFiles({
+    name: 'reference-demo.wav',
+    mimeType: 'audio/wav',
+    buffer: Buffer.from('demo'),
+  })
+  await expect(page.getByText('reference-demo.wav')).toBeVisible()
+  await page.getByPlaceholder(/以后默认给我做纯音乐/).fill('参考这个 demo 创作一首电子纯音乐')
+  await page.getByTitle('发送').click()
+
+  await expect(page.getByText('已收到参考音频。')).toBeVisible()
+  await expect(page.locator('.chat-audio-attachment').getByText('reference-demo.wav')).toBeVisible()
+  expect(sentAssetIds).toEqual(['audio-1'])
+  await page.screenshot({ path: '/tmp/nanguos-chat-audio.png', fullPage: true })
 })
 
 test('renders the portfolio as a cover-led music library', async ({ page }) => {

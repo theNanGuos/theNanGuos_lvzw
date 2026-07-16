@@ -25,11 +25,20 @@ class ChatWorkflowRun(BaseModel):
     preset: ProjectPreset
 
 
+class ChatAudioAttachment(BaseModel):
+    id: str = Field(default_factory=lambda: uuid4().hex)
+    filename: str
+    path: str
+    content_type: str
+    size: int = Field(ge=0)
+
+
 class ChatMessage(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex)
     role: ChatRole
     content: str = Field(min_length=1, max_length=4000)
     workflow_run: ChatWorkflowRun | None = None
+    audio_attachments: list[ChatAudioAttachment] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utc_now)
 
 
@@ -38,6 +47,7 @@ class ChatSession(BaseModel):
     title: str = Field(default="新会话", max_length=100)
     messages: list[ChatMessage] = Field(default_factory=list)
     summary: str = Field(default="", max_length=4000)
+    assets: list[ChatAudioAttachment] = Field(default_factory=list)
     active_project_id: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
@@ -70,6 +80,7 @@ class ChatSessionUpdate(BaseModel):
 
 class ChatRequest(BaseModel):
     content: str = Field(min_length=1, max_length=4000)
+    asset_ids: list[str] = Field(default_factory=list, max_length=4)
 
 
 class ChatDecision(BaseModel):

@@ -15,6 +15,7 @@ from app.session_store import LocalSessionStore, SessionNotFoundError
 from app.storage import LocalProjectStore, ProjectNotFoundError
 from lib.logging_config import get_logger, log_context, setup_logging
 from models.chat import (
+    ChatAudioAttachment,
     ChatDecision,
     ChatMessage,
     ChatRequest,
@@ -89,6 +90,19 @@ def generation_options(state: dict, project: Project) -> dict[str, object]:
         "title": str(value_from(brief, "title", project.title) or project.title),
         "custom_mode": True,
     }
+
+
+def workflow_request(project: Project) -> str:
+    preferences = []
+    if project.genre != "auto":
+        preferences.append(f"流派：{project.genre}")
+    if project.language != "auto":
+        preferences.append(f"语言：{project.language}")
+    if project.instruments:
+        preferences.append(f"主要乐器：{'、'.join(project.instruments)}")
+    if not preferences:
+        return project.user_request
+    return f"{project.user_request}\n\n创作参数：{'；'.join(preferences)}"
 
 
 def generated_track_payload(track: GeneratedTrack, works_root: Path) -> dict[str, object]:
@@ -289,7 +303,7 @@ def create_app(
                 result = get_workflow_runner().invoke(
                     {
                         "project_id": project_id,
-                        "user_request": project.user_request,
+                        "user_request": workflow_request(project),
                         "preset": project.preset,
                         "memory_context": memory_context(),
                         "artifact_dir": str(project_store.artifact_dir(project_id)),
@@ -498,6 +512,37 @@ def create_app(
         logger.info("chat_session_created session_id=%s", session.id)
         return session
 
+    @app.post(
+        "/api/sessions/{session_id}/assets",
+        response_model=ChatAudioAttachment,
+        status_code=status.HTTP_201_CREATED,
+    )
+    async def upload_session_asset(
+        session_id: str,
+        file: UploadFile = File(...),
+    ) -> ChatAudioAttachment:
+        get_session(session_id)
+        filename = file.filename or "reference-audio"
+        if Path(filename).suffix.lower() not in ALLOWED_AUDIO_SUFFIXES:
+            raise HTTPException(status_code=400, detail="Unsupported audio format")
+        content = await file.read(MAX_UPLOAD_SIZE + 1)
+        if len(content) > MAX_UPLOAD_SIZE:
+            raise HTTPException(status_code=413, detail="Audio file exceeds 20 MB")
+        asset = sessions.add_asset(
+            session_id,
+            filename,
+            file.content_type or "application/octet-stream",
+            content,
+        )
+        with log_context(stage="chat_asset_upload"):
+            logger.info(
+                "chat_asset_uploaded session_id=%s filename=%s size=%s",
+                session_id,
+                asset.filename,
+                asset.size,
+            )
+        return asset
+
     @app.get("/api/sessions/{session_id}", response_model=ChatSession)
     def read_session(session_id: str) -> ChatSession:
         return get_session(session_id)
@@ -519,7 +564,16 @@ def create_app(
     @app.post("/api/sessions/{session_id}/messages", response_model=ChatResponse)
     def send_message(session_id: str, payload: ChatRequest) -> ChatResponse:
         session = get_session(session_id)
-        user_message = ChatMessage(role="user", content=payload.content)
+        assets_by_id = {asset.id: asset for asset in session.assets}
+        try:
+            attached_assets = [assets_by_id[asset_id] for asset_id in payload.asset_ids]
+        except KeyError as exc:
+            raise HTTPException(status_code=400, detail="Chat audio attachment not found") from exc
+        user_message = ChatMessage(
+            role="user",
+            content=payload.content,
+            audio_attachments=attached_assets,
+        )
         session.messages.append(user_message)
         if len(session.messages) > 20:
             older_messages = session.messages[:-20]
@@ -539,6 +593,14 @@ def create_app(
                     "session_summary": session.summary,
                     "active_project_id": session.active_project_id,
                     "memory_context": context,
+                    "reference_audio_attachments": [
+                        {
+                            "filename": asset.filename,
+                            "content_type": asset.content_type,
+                            "size": asset.size,
+                        }
+                        for asset in attached_assets
+                    ],
                 }
             )
             decision = ChatDecision.model_validate(raw_decision)
@@ -581,6 +643,13 @@ def create_app(
                 )
             project_id = project.id
             session.active_project_id = project.id
+            for asset in attached_assets:
+                project_store.add_asset(
+                    project.id,
+                    asset.filename,
+                    asset.content_type,
+                    sessions.asset_file_path(session_id, asset).read_bytes(),
+                )
             if decision.action in {"run_workflow", "revise_project"}:
                 run_id = start_background_run(project.id).id
 

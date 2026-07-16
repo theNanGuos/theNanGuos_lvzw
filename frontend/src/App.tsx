@@ -13,6 +13,7 @@ import {
   LoaderCircle,
   Library,
   MessageSquare,
+  Paperclip,
   Play,
   Plus,
   SlidersHorizontal,
@@ -36,6 +37,7 @@ import {
   runProjectAsync,
   sendChatMessage,
   uploadAsset,
+  uploadSessionAsset,
 } from './api'
 import type {
   ChatMessage,
@@ -74,6 +76,10 @@ const presetOptions: Array<{ value: Preset; label: string; description: string }
   { value: 'soundtrack_score', label: '影视配乐', description: '情绪叙事、空间声景和主题发展' },
 ]
 
+const genreOptions = ['自动选择', '流行', '摇滚', '电子', 'R&B', '爵士', '古典', '民谣', '嘻哈', '影视配乐', '世界音乐']
+const languageOptions = ['自动选择', '纯音乐', '中文', '英文', '日语', '韩语', '西班牙语']
+const instrumentOptions = ['钢琴', '原声吉他', '电吉他', '弦乐', '管弦乐', '合成器', '鼓组', '贝斯', '民族乐器', '人声']
+
 const statusSteps: Array<{ value: RunStatus; label: string }> = [
   { value: 'creating', label: '建档' },
   { value: 'uploading', label: '参考' },
@@ -107,6 +113,9 @@ function App() {
   const [title, setTitle] = useState('未命名作品')
   const [request, setRequest] = useState('')
   const [preset, setPreset] = useState<Preset>('auto')
+  const [genre, setGenre] = useState('自动选择')
+  const [language, setLanguage] = useState('自动选择')
+  const [instruments, setInstruments] = useState<string[]>([])
   const [audio, setAudio] = useState<File | null>(null)
   const [status, setStatus] = useState<RunStatus>('idle')
   const [result, setResult] = useState<RunResult | null>(null)
@@ -116,12 +125,14 @@ function App() {
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([])
   const [sessionId, setSessionId] = useState('')
   const [chatInput, setChatInput] = useState('')
+  const [chatAudio, setChatAudio] = useState<File | null>(null)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatSending, setChatSending] = useState(false)
   const [chatSessions, setChatSessions] = useState<ChatSessionSummary[]>([])
   const [mobileSessionsOpen, setMobileSessionsOpen] = useState(false)
   const monitorVersion = useRef(0)
   const sessionSelectionVersion = useRef(0)
+  const chatAudioInputRef = useRef<HTMLInputElement>(null)
 
   const busy = ['creating', 'uploading', 'running'].includes(status)
   const finalPrompt = useMemo(
@@ -203,6 +214,10 @@ function App() {
     setTitle('未命名作品')
     setRequest('')
     setPreset('auto')
+    setGenre('自动选择')
+    setLanguage('自动选择')
+    setInstruments([])
+    setAudio(null)
     setStatus('idle')
     setProgress(0)
     setCurrentStage('draft')
@@ -217,6 +232,9 @@ function App() {
       setTitle(project.title)
       setRequest(project.user_request)
       setPreset(project.preset)
+      setGenre(!project.genre || project.genre === 'auto' ? '自动选择' : project.genre)
+      setLanguage(!project.language || project.language === 'auto' ? '自动选择' : project.language)
+      setInstruments(project.instruments ?? [])
       setProgress(project.progress)
       setCurrentStage(project.current_stage)
       setStatus(project.status === 'draft' ? 'idle' : project.status)
@@ -246,6 +264,7 @@ function App() {
     setSessionId(session.id)
     setChatMessages(session.messages)
     setChatInput('')
+    setChatAudio(null)
     setView('chat')
     setMobileSessionsOpen(false)
     resetProjectState()
@@ -270,6 +289,7 @@ function App() {
     setSessionId('')
     setChatMessages([])
     setChatInput('')
+    setChatAudio(null)
     setView('chat')
     setMobileSessionsOpen(false)
     resetProjectState()
@@ -337,6 +357,9 @@ function App() {
         title: title.trim() || '未命名作品',
         user_request: request.trim(),
         preset,
+        genre: genre === '自动选择' ? 'auto' : genre,
+        language: language === '自动选择' ? 'auto' : language,
+        instruments,
       })
       if (audio) {
         setStatus('uploading')
@@ -361,7 +384,19 @@ function App() {
     setError('')
     setChatMessages((messages) => [
       ...messages,
-      { id: `pending-${Date.now()}`, role: 'user', content, created_at: new Date().toISOString() },
+      {
+        id: `pending-${Date.now()}`,
+        role: 'user',
+        content,
+        audio_attachments: chatAudio ? [{
+          id: 'pending-audio',
+          filename: chatAudio.name,
+          path: '',
+          content_type: chatAudio.type,
+          size: chatAudio.size,
+        }] : [],
+        created_at: new Date().toISOString(),
+      },
     ])
     try {
       let activeSessionId = sessionId
@@ -372,7 +407,10 @@ function App() {
         setChatSessions((sessions) => [sessionSummary(session), ...sessions])
         updateSessionLocation(session.id, true)
       }
-      const response = await sendChatMessage(activeSessionId, content)
+      const attachment = chatAudio ? await uploadSessionAsset(activeSessionId, chatAudio) : null
+      const response = await sendChatMessage(activeSessionId, content, attachment ? [attachment.id] : [])
+      setChatAudio(null)
+      if (chatAudioInputRef.current) chatAudioInputRef.current.value = ''
       setChatMessages(response.session.messages)
       setChatSessions((sessions) => [
         sessionSummary(response.session),
@@ -530,6 +568,13 @@ function App() {
                 <article className={`chat-message ${message.role} ${message.workflow_run ? 'has-workflow' : ''}`} key={message.id}>
                   <span>{message.role === 'user' ? '你' : '南郭先生'}</span>
                   <p>{message.content}</p>
+                  {message.audio_attachments?.map((attachment) => (
+                    <div className="chat-audio-attachment" key={attachment.id}>
+                      <FileAudio size={15} />
+                      <span>{attachment.filename}</span>
+                      <small>{(attachment.size / 1024 / 1024).toFixed(1)} MB</small>
+                    </div>
+                  ))}
                   {message.workflow_run && <ChatWorkflowRun reference={message.workflow_run} />}
                 </article>
               ))}
@@ -539,6 +584,36 @@ function App() {
             </div>
             {error && <div className="chat-error">{error}</div>}
             <form className="chat-composer" onSubmit={(event) => { event.preventDefault(); void handleChat() }}>
+              {chatAudio && (
+                <div className="chat-file-chip">
+                  <FileAudio size={15} />
+                  <span>{chatAudio.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChatAudio(null)
+                      if (chatAudioInputRef.current) chatAudioInputRef.current.value = ''
+                    }}
+                    title="移除参考音频"
+                  ><X size={14} /></button>
+                </div>
+              )}
+              <input
+                ref={chatAudioInputRef}
+                className="chat-file-input"
+                type="file"
+                accept="audio/mp3,audio/mpeg,audio/wav,audio/flac,audio/mp4,audio/ogg"
+                onChange={(event) => setChatAudio(event.target.files?.[0] ?? null)}
+              />
+              <button
+                className="chat-attach-button"
+                type="button"
+                onClick={() => chatAudioInputRef.current?.click()}
+                disabled={chatSending}
+                title="添加参考音频"
+              >
+                <Paperclip size={18} />
+              </button>
               <textarea
                 value={chatInput}
                 onChange={(event) => setChatInput(event.target.value)}
@@ -575,7 +650,7 @@ function App() {
                 <fieldset className="field">
                   <legend>预设乐团</legend>
                   <div className="select-wrap">
-                    <select value={preset} onChange={(event) => setPreset(event.target.value as Preset)}>
+                    <select aria-label="预设乐团" value={preset} onChange={(event) => setPreset(event.target.value as Preset)}>
                       {presetOptions.map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
@@ -591,6 +666,47 @@ function App() {
                   <span>{selectedPreset.description}</span>
                 </div>
               </div>
+
+              <div className="creative-controls">
+                <fieldset className="field">
+                  <legend>流派</legend>
+                  <div className="select-wrap">
+                    <select aria-label="流派" value={genre} onChange={(event) => setGenre(event.target.value)}>
+                      {genreOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  </div>
+                </fieldset>
+                <fieldset className="field">
+                  <legend>语言</legend>
+                  <div className="select-wrap">
+                    <select aria-label="语言" value={language} onChange={(event) => setLanguage(event.target.value)}>
+                      {languageOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  </div>
+                </fieldset>
+              </div>
+
+              <fieldset className="field instrument-field">
+                <legend>主要乐器</legend>
+                <div className="instrument-options">
+                  {instrumentOptions.map((instrument) => {
+                    const selected = instruments.includes(instrument)
+                    return (
+                      <button
+                        type="button"
+                        aria-pressed={selected}
+                        className={selected ? 'selected' : ''}
+                        key={instrument}
+                        onClick={() => setInstruments((current) => (
+                          selected ? current.filter((item) => item !== instrument) : [...current, instrument]
+                        ))}
+                      >
+                        {instrument}
+                      </button>
+                    )
+                  })}
+                </div>
+              </fieldset>
 
               <label className="field grow">
                 <span>音乐构想</span>

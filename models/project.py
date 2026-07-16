@@ -31,6 +31,9 @@ class Project(BaseModel):
     title: str
     user_request: str
     preset: ProjectPreset = "auto"
+    genre: str = Field(default="auto", max_length=80)
+    language: str = Field(default="auto", max_length=40)
+    instruments: list[str] = Field(default_factory=list, max_length=12)
     status: ProjectStatus = "draft"
     progress: int = Field(default=0, ge=0, le=100)
     current_stage: str = "draft"
@@ -48,6 +51,9 @@ class ProjectCreate(BaseModel):
     title: str = Field(min_length=1, max_length=100)
     user_request: str = Field(min_length=1, max_length=2000)
     preset: ProjectPreset = "auto"
+    genre: str = Field(default="auto", max_length=80)
+    language: str = Field(default="auto", max_length=40)
+    instruments: list[str] = Field(default_factory=list, max_length=12)
 
 
 class RunResult(BaseModel):

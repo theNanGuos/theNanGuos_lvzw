@@ -10,6 +10,9 @@ export interface Project {
   title: string
   user_request: string
   preset: Preset
+  genre: string
+  language: string
+  instruments: string[]
   status: 'draft' | 'running' | 'completed' | 'failed'
   progress: number
   current_stage: string
@@ -54,7 +57,16 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   workflow_run?: ChatWorkflowRun | null
+  audio_attachments?: ChatAudioAttachment[]
   created_at: string
+}
+
+export interface ChatAudioAttachment {
+  id: string
+  filename: string
+  path: string
+  content_type: string
+  size: number
 }
 
 export interface ChatWorkflowRun {
@@ -138,6 +150,9 @@ export function createProject(payload: {
   title: string
   user_request: string
   preset: Preset
+  genre?: string
+  language?: string
+  instruments?: string[]
 }) {
   return request<Project>('/api/projects', {
     method: 'POST',
@@ -200,11 +215,17 @@ export function getProject(projectId: string) {
   return request<Project>(`/api/projects/${projectId}`)
 }
 
-export function sendChatMessage(sessionId: string, content: string) {
+export function uploadSessionAsset(sessionId: string, file: File) {
+  const body = new FormData()
+  body.append('file', file)
+  return request<ChatAudioAttachment>(`/api/sessions/${sessionId}/assets`, { method: 'POST', body })
+}
+
+export function sendChatMessage(sessionId: string, content: string, assetIds: string[] = []) {
   return request<ChatResponse>(`/api/sessions/${sessionId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, asset_ids: assetIds }),
   })
 }
 

@@ -82,7 +82,7 @@ KIE/Suno provider 按 Kie 文档调用 `POST /api/v1/generate`。提交请求需
 ```
 
 脚本会在缺少 `.venv` 或 `frontend/node_modules` 时自动安装依赖，并同时启动后端和前端。API 默认位于 `http://127.0.0.1:8000`，交互文档位于 `/docs`，创作工作台位于 `http://127.0.0.1:5173`。按 `Ctrl+C` 会停止两个开发服务。
-前端默认进入“南郭先生”对话。南郭先生代表南郭乐团理解用户需求、读取记忆，并且只会选择白名单动作与预设工作流；当用户要求开始创作时，后端立即返回 run id，并在本地后台线程中执行工作流。前端轮询 Run 状态显示阶段进度。生成完成后，Suno 音频和封面会分别以歌曲名称保存到 `works/` 下，并在独立作品集页面展示封面、风格、时长、进度、播放和下载入口。创作台仍可直接填写精确参数。
+前端默认进入“南郭先生”对话。南郭先生代表南郭乐团理解用户需求、读取记忆，并且只会选择白名单动作与预设工作流；对话消息可以附带参考音频，附件会随作品进入 Audio Reference Agent 分析。当用户要求开始创作时，后端立即返回 run id，并在本地后台线程中执行工作流。前端轮询 Run 状态显示阶段进度。生成完成后，Suno 音频和封面会分别以歌曲名称保存到 `works/` 下，并在独立作品集页面展示封面、风格、时长、进度、播放和下载入口。创作台可以选择流派、语言、主要乐器、预设乐团并上传 demo 音频。
 
 如需手动启动，分别运行：
 
@@ -93,11 +93,12 @@ cd frontend
 npm run dev
 ```
 
-项目元数据、上传音频和运行结果分别保存在 `data/projects/<project-id>/` 下的 `project.json`、`assets/` 和 `runs/` 中。会话短期记忆保存在 `data/sessions/<session-id>/session.json`，跨会话偏好和工作流统计保存在 `data/memory/user_profile.json`。这些数据都使用临时文件替换方式写入，不需要数据库或消息队列。
+项目元数据、上传音频和运行结果分别保存在 `data/projects/<project-id>/` 下的 `project.json`、`assets/` 和 `runs/` 中。会话短期记忆和待关联的聊天音频分别保存在 `data/sessions/<session-id>/session.json` 与 `assets/`，跨会话偏好和工作流统计保存在 `data/memory/user_profile.json`。这些数据都使用临时文件替换方式写入，不需要数据库或消息队列。
 
 主要新增接口：
 
 - `POST /api/sessions`、`POST /api/sessions/{id}/messages`：创建会话并由南郭先生回复、路由。
+- `POST /api/sessions/{id}/assets`：上传随对话消息发送的参考音频。
 - `GET /api/sessions`、`GET/PATCH/DELETE /api/sessions/{id}`：列出、恢复、重命名和删除独立会话。
 - `GET /api/portfolio`：读取已完成和正在生成的本地作品。
 - `POST /api/projects/{id}/runs/async`：启动后台运行并立即返回 Run。

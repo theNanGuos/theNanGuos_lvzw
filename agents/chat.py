@@ -18,5 +18,6 @@ class ChatAgent(Agent):
                 "session_summary",
                 "active_project_id",
                 "memory_context",
+                "reference_audio_attachments",
             ),
         )

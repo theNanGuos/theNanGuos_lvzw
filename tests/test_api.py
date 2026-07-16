@@ -158,6 +158,9 @@ def test_project_lifecycle_is_persisted_locally(tmp_path):
             "title": "钢琴协奏曲",
             "user_request": "生成一首恢弘的钢琴协奏曲",
             "preset": "classical_instrumental",
+            "genre": "古典",
+            "language": "纯音乐",
+            "instruments": ["钢琴", "弦乐"],
         },
     )
     assert response.status_code == 201
@@ -176,6 +179,9 @@ def test_project_lifecycle_is_persisted_locally(tmp_path):
     assert generator.inputs[0]["custom_mode"] is True
     assert generator.inputs[0]["instrumental"] is True
     assert runner.inputs[0]["preset"] == "classical_instrumental"
+    assert "流派：古典" in runner.inputs[0]["user_request"]
+    assert "语言：纯音乐" in runner.inputs[0]["user_request"]
+    assert "主要乐器：钢琴、弦乐" in runner.inputs[0]["user_request"]
 
     saved_project = json.loads(
         (store.root / project["id"] / "project.json").read_text(encoding="utf-8")
@@ -280,10 +286,19 @@ def test_chat_session_routes_workflow_and_persists_memory(tmp_path):
     )
     client = TestClient(app)
     session = client.post("/api/sessions", json={"title": "偏好测试"}).json()
+    uploaded = client.post(
+        f"/api/sessions/{session['id']}/assets",
+        files={"file": ("demo.wav", b"reference demo", "audio/wav")},
+    )
+    assert uploaded.status_code == 201
+    attachment = uploaded.json()
 
     response = client.post(
         f"/api/sessions/{session['id']}/messages",
-        json={"content": "以后默认做纯音乐，这次生成雨夜氛围电子曲"},
+        json={
+            "content": "以后默认做纯音乐，这次参考 demo 生成雨夜氛围电子曲",
+            "asset_ids": [attachment["id"]],
+        },
     )
 
     assert response.status_code == 200
@@ -301,6 +316,10 @@ def test_chat_session_routes_workflow_and_persists_memory(tmp_path):
     }
     persisted = client.get(f"/api/sessions/{session['id']}").json()
     assert persisted["messages"][1]["workflow_run"] == workflow_run
+    assert persisted["messages"][0]["audio_attachments"][0]["filename"] == "demo.wav"
+    assert chat_agent.inputs[0]["reference_audio_attachments"] == [
+        {"filename": "demo.wav", "content_type": "audio/wav", "size": 14}
+    ]
     assert memories.load_profile().preferences[0].value == "纯音乐"
 
     deadline = time.monotonic() + 3
@@ -315,6 +334,8 @@ def test_chat_session_routes_workflow_and_persists_memory(tmp_path):
     assert run["status"] == "completed"
     assert run["progress"] == 100
     assert runner.inputs[0]["memory_context"].preferences[0].value == "纯音乐"
+    assert len(runner.inputs[0]["reference_audio_paths"]) == 1
+    assert store.get_project(payload["project_id"]).assets[0].filename == "demo.wav"
     portfolio = client.get("/api/portfolio").json()
     assert portfolio[0]["project_id"] == payload["project_id"]
     assert portfolio[0]["status"] == "completed"

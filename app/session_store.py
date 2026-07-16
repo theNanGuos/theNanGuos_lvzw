@@ -1,8 +1,15 @@
 from pathlib import Path
 from shutil import rmtree
 from threading import RLock
+from uuid import uuid4
 
-from models.chat import ChatMessage, ChatSession, ChatSessionCreate, ChatSessionUpdate
+from models.chat import (
+    ChatAudioAttachment,
+    ChatMessage,
+    ChatSession,
+    ChatSessionCreate,
+    ChatSessionUpdate,
+)
 from models.project import utc_now
 
 
@@ -48,6 +55,32 @@ class LocalSessionStore:
         session.messages.append(message)
         self.save_session(session)
         return session
+
+    def add_asset(
+        self,
+        session_id: str,
+        filename: str,
+        content_type: str,
+        content: bytes,
+    ) -> ChatAudioAttachment:
+        session = self.get_session(session_id)
+        suffix = Path(filename).suffix.lower()
+        asset = ChatAudioAttachment(
+            filename=Path(filename).name,
+            path=f"assets/{uuid4().hex}{suffix}",
+            content_type=content_type,
+            size=len(content),
+        )
+        path = self._session_path(session_id).parent / asset.path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        session.assets.append(asset)
+        self.save_session(session)
+        return asset
+
+    def asset_file_path(self, session_id: str, asset: ChatAudioAttachment) -> Path:
+        self.get_session(session_id)
+        return self._session_path(session_id).parent / asset.path
 
     def update_session(self, session_id: str, data: ChatSessionUpdate) -> ChatSession:
         with self._lock:
