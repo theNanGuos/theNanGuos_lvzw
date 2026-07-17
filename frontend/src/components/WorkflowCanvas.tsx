@@ -54,17 +54,17 @@ function graphForPreset(
   currentStage: string,
 ): { nodes: Node<AgentData>[]; edges: Edge[] } {
   const agents: Record<string, [string, string]> = {
-    conductor: ['指挥', '分析与分工'],
-    lyrics: ['作词', '歌词与 Hook'],
-    melody: ['作曲', '主题与旋律'],
-    harmony: ['和声', '张力与进行'],
-    rhythm: ['节奏', 'Groove 与能量'],
-    improvisation: ['即兴', 'Solo 与乐手对话'],
-    performance: ['演奏', '动态与人性化'],
-    arrange: ['编曲', '配器与织体'],
-    sound: ['音色', '声景与质感'],
-    review: ['审听', '平衡与风险'],
-    prompt: ['提示词', '汇总与编译'],
+    conductor: ['指挥南郭', '分析与分工'],
+    lyrics: ['作词南郭', '歌词与 Hook'],
+    melody: ['旋律南郭', '主题与旋律'],
+    harmony: ['和声南郭', '张力与进行'],
+    rhythm: ['节奏南郭', 'Groove 与能量'],
+    improvisation: ['即兴南郭', 'Solo 与乐手对话'],
+    performance: ['演奏南郭', '动态与人性化'],
+    arrange: ['编曲南郭', '配器与织体'],
+    sound: ['音色南郭', '声景与质感'],
+    review: ['审听南郭', '平衡与风险'],
+    prompt: ['提示词南郭', '汇总与编译'],
   }
   const pipelines: Record<Preset, string[]> = {
     auto: ['conductor', 'lyrics', 'melody', 'harmony', 'rhythm', 'arrange', 'sound', 'review', 'prompt'],

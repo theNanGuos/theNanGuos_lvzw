@@ -7,7 +7,7 @@ from models.state import ConductorOutput
 class ConductorAgent(Agent):
     def __init__(self, llm: BaseChatModel):
         super().__init__(
-            name = "Conductor Agent",
+            name = "指挥南郭",
             llm = llm,
             system_prompt=with_skills(conductor(), "conductor-tool-routing"),
             output_schema=ConductorOutput,

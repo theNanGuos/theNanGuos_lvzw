@@ -8,7 +8,7 @@ from models.state import MixReviewOutput, MixReview, State
 class MixReviewAgent(Agent):
     def __init__(self, llm: BaseChatModel):
         super().__init__(
-            name="Mix Review Agent",
+            name="审听南郭",
             llm=llm,
             system_prompt=mix_review(),
             output_schema=MixReviewOutput,

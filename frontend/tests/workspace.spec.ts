@@ -4,8 +4,8 @@ test('renders the agent workspace on desktop', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/')
 
-  await expect(page.getByRole('heading', { name: '与南郭先生对话' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: '南郭先生', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '与对话南郭对话' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '对话南郭', exact: true })).toBeVisible()
   await expect(page.getByText('南郭乐团代表')).toBeVisible()
   await expect(page.getByText('Chat Agent')).toHaveCount(0)
   await expect(page.getByPlaceholder(/以后默认给我做纯音乐/)).toBeVisible()
@@ -17,7 +17,7 @@ test('keeps controls readable on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
 
-  await expect(page.getByRole('heading', { name: '与南郭先生对话' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '与对话南郭对话' })).toBeVisible()
   await page.getByRole('button', { name: '创作台' }).click()
   await expect(page.getByRole('button', { name: '召集南郭先生们开始创作' })).toBeVisible()
   await expect(page.getByRole('combobox', { name: '流派' })).toBeVisible()

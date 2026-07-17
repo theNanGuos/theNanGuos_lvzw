@@ -77,7 +77,7 @@ const statusCopy: Record<RunStatus, string> = {
 }
 
 const presetOptions: Array<{ value: Preset; label: string; description: string }> = [
-  { value: 'auto', label: '自动选择', description: '由指挥 Agent 选择合适的乐团路径' },
+  { value: 'auto', label: '自动选择', description: '由指挥南郭选择合适的乐团路径' },
   { value: 'pop_vocal', label: '流行人声', description: '歌词、旋律、节奏和制作完整协作' },
   { value: 'classical_instrumental', label: '古典器乐', description: '主题、和声、配器与可选乐谱导出' },
   { value: 'electronic_instrumental', label: '电子器乐', description: '节奏先行，突出低频和音色设计' },
@@ -621,7 +621,7 @@ function App() {
         <header className="topbar">
           <div>
             <div className="eyebrow">MUSIC AGENT STUDIO</div>
-            <h1>{view === 'chat' ? '与南郭先生对话' : view === 'compose' ? '音乐创作工作台' : view === 'portfolio' ? '我的作品集' : view === 'memory' ? '长期记忆库' : '乐团工作流'}</h1>
+            <h1>{view === 'chat' ? '与对话南郭对话' : view === 'compose' ? '音乐创作工作台' : view === 'portfolio' ? '我的作品集' : view === 'memory' ? '长期记忆库' : '乐团工作流'}</h1>
           </div>
           <div className={`run-state ${status}`}>
             {busy ? <LoaderCircle className="spin" size={15} /> : <span className="status-dot" />}
@@ -636,7 +636,7 @@ function App() {
             <div className="chat-heading">
               <div>
                 <span>南郭乐团代表</span>
-                <h2>南郭先生</h2>
+                <h2>对话南郭</h2>
               </div>
               <div className="chat-heading-actions">
                 <button className="mobile-session-button" type="button" onClick={() => setMobileSessionsOpen(true)} title="查看对话"><History size={18} /></button>
@@ -651,7 +651,7 @@ function App() {
                 </div>
               ) : chatMessages.map((message) => (
                 <article className={`chat-message ${message.role} ${message.workflow_run ? 'has-workflow' : ''}`} key={message.id}>
-                  <span>{message.role === 'user' ? '你' : '南郭先生'}</span>
+                  <span>{message.role === 'user' ? '你' : '对话南郭'}</span>
                   <p>{message.content}</p>
                   {message.audio_attachments?.map((attachment) => (
                     <div className="chat-audio-attachment" key={attachment.id}>

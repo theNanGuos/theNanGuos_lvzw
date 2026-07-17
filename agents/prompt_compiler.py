@@ -9,7 +9,7 @@ from models.state import State, PromptOutput
 class PromptCompilerAgent(Agent):
     def __init__(self, llm: BaseChatModel):
         super().__init__(
-            name="Prompt Compiler Agent",
+            name="提示词南郭",
             llm=llm,
             system_prompt=with_skills(prompt_compiler(), "suno-prompt-tool-handoff"),
             output_schema=PromptOutput,

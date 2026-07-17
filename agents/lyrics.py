@@ -7,7 +7,7 @@ from models.state import LyricsDraft, LyricsOutput, State
 class LyricsAgent(Agent):
     def __init__(self, llm: BaseChatModel):
         super().__init__(
-            name = "Lyrics Agent",
+            name = "作词南郭",
             llm = llm,
             system_prompt=with_skills(lyrics(), "lyrics-reference-audio"),
             output_schema=LyricsOutput,

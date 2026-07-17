@@ -7,7 +7,7 @@ from models.state import MelodyOutput, MelodyPlan, State
 class MelodyAgent(Agent):
     def __init__(self, llm: BaseChatModel):
         super().__init__(
-            name = "Melody Agent",
+            name = "旋律南郭",
             llm = llm,
             system_prompt=with_skills(melody(), "melody-demo-audio"),
             output_schema=MelodyOutput,

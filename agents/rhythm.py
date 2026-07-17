@@ -8,7 +8,7 @@ from models.state import RhythmOutput, RhythmPlan, State
 class RhythmAgent(Agent):
     def __init__(self, llm: BaseChatModel):
         super().__init__(
-            name="Rhythm Agent",
+            name="节奏南郭",
             llm=llm,
             system_prompt=rhythm(),
             output_schema=RhythmOutput,

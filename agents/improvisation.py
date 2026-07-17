@@ -8,7 +8,7 @@ from models.state import ImprovisationOutput, ImprovisationPlan, State
 class ImprovisationAgent(Agent):
     def __init__(self, llm: BaseChatModel):
         super().__init__(
-            name="Improvisation Agent",
+            name="即兴南郭",
             llm=llm,
             system_prompt=improvisation(),
             output_schema=ImprovisationOutput,

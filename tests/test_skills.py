@@ -1,9 +1,15 @@
 from agents.arrange import ArrangeAgent
 from agents.chat import ChatAgent
 from agents.conductor import ConductorAgent
+from agents.harmony import HarmonyAgent
+from agents.improvisation import ImprovisationAgent
 from agents.lyrics import LyricsAgent
 from agents.melody import MelodyAgent
+from agents.mix_review import MixReviewAgent
+from agents.performance import PerformanceAgent
 from agents.prompt_compiler import PromptCompilerAgent
+from agents.rhythm import RhythmAgent
+from agents.sound_design import SoundDesignAgent
 from lib.skills import read_skill, with_skills
 
 
@@ -43,11 +49,32 @@ def test_agents_load_role_specific_skills():
     assert "lyrics-reference-audio" not in ArrangeAgent(llm).system_prompt
 
 
+def test_creative_agents_use_nanguo_role_names():
+    llm = object()
+    agents = [
+        (ConductorAgent(llm), "指挥南郭"),
+        (LyricsAgent(llm), "作词南郭"),
+        (MelodyAgent(llm), "旋律南郭"),
+        (HarmonyAgent(llm), "和声南郭"),
+        (RhythmAgent(llm), "节奏南郭"),
+        (ImprovisationAgent(llm), "即兴南郭"),
+        (PerformanceAgent(llm), "演奏南郭"),
+        (ArrangeAgent(llm), "编曲南郭"),
+        (SoundDesignAgent(llm), "音色南郭"),
+        (MixReviewAgent(llm), "审听南郭"),
+        (PromptCompilerAgent(llm), "提示词南郭"),
+    ]
+
+    for agent, expected_name in agents:
+        assert agent.name == expected_name
+        assert agent.system_prompt.startswith(f"# {expected_name}")
+
+
 def test_chat_agent_uses_nanguo_identity_prompt():
     agent = ChatAgent(object())
 
-    assert agent.name == "南郭先生"
-    assert "你是“南郭先生”" in agent.system_prompt
+    assert agent.name == "对话南郭"
+    assert "你是“对话南郭”" in agent.system_prompt
     assert "南郭乐团的对外代表" in agent.system_prompt
     assert "不要自称 Chat Agent" in agent.system_prompt
     assert "previous_works" in agent.system_prompt

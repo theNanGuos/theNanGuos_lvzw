@@ -1,6 +1,6 @@
 ---
 name: lyrics-reference-audio
-description: Help Lyrics Agent use uploaded audio analysis without pretending to transcribe audio.
+description: Help 作词南郭 use uploaded audio analysis without pretending to transcribe audio.
 ---
 
 # Lyrics Reference Audio

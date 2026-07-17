@@ -8,7 +8,7 @@ from models.state import HarmonyOutput, HarmonyPlan, State
 class HarmonyAgent(Agent):
     def __init__(self, llm: BaseChatModel):
         super().__init__(
-            name="Harmony Agent",
+            name="和声南郭",
             llm=llm,
             system_prompt=harmony(),
             output_schema=HarmonyOutput,

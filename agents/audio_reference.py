@@ -37,7 +37,7 @@ class AudioReferenceAgent:
         messages = [
             SystemMessage(
                 content=(
-                    "你是音频参考分析 Agent。必须通过工具调用分析用户上传的音频。"
+                    "你是“参考南郭”，负责通过工具调用分析用户上传的音频。"
                     "只能使用提供的工具和 asset_index，不要请求任意文件路径。"
                     "优先调用 inspect_uploaded_audio；需要预览或可视化时再调用其他工具。"
                 )
@@ -54,7 +54,7 @@ class AudioReferenceAgent:
                 )
             ),
         ]
-        with log_context(stage="Audio Reference Agent"):
+        with log_context(stage="参考南郭"):
             logger.info("audio_reference_started assets=%s", len(paths))
             response = self.llm.bind_tools(tools).invoke(messages)
             references = []

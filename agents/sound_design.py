@@ -8,7 +8,7 @@ from models.state import SoundDesignOutput, SoundDesignPlan, State
 class SoundDesignAgent(Agent):
     def __init__(self, llm: BaseChatModel):
         super().__init__(
-            name="Sound Design Agent",
+            name="音色南郭",
             llm=llm,
             system_prompt=sound_design(),
             output_schema=SoundDesignOutput,

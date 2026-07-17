@@ -8,7 +8,7 @@ from models.state import PerformanceOutput, PerformancePlan, State
 class PerformanceAgent(Agent):
     def __init__(self, llm: BaseChatModel):
         super().__init__(
-            name="Performance Agent",
+            name="演奏南郭",
             llm=llm,
             system_prompt=performance(),
             output_schema=PerformanceOutput,

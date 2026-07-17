@@ -7,7 +7,7 @@ from models.state import ArrangementOutput, ArrangementPlan, State
 class ArrangeAgent(Agent):
     def __init__(self, llm: BaseChatModel):
         super().__init__(
-            name = "Arrange Agent",
+            name = "编曲南郭",
             llm = llm,
             system_prompt=with_skills(arrange(), "arrangement-audio-analysis"),
             output_schema=ArrangementOutput,

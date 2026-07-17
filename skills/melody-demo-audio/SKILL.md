@@ -1,6 +1,6 @@
 ---
 name: melody-demo-audio
-description: Help Melody Agent prepare simple melodic plans that can produce intermediate demo audio.
+description: Help 旋律南郭 prepare simple melodic plans that can produce intermediate demo audio.
 ---
 
 # Melody Demo Audio
