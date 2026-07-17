@@ -1,0 +1,143 @@
+%!TeX program = xelatex
+\documentclass{SYSUReport}
+
+% 根据个人情况修改
+\headl{实验三：TSP 旅行商问题}
+\headr{人工智能实验}
+\lessonTitle{人工智能实验}
+\reportTitle{实验三：TSP 旅行商问题}
+\inst{计算机学院}
+\major{保密管理}
+\stuname{吕梓文}
+\stuid{24353028}
+\date{\today}
+
+\AddEnumerateCounter{\chinese}{\chinese}{}
+\begin{document}
+
+\cover
+\updateheader{实验三：TSP 旅行商问题}
+\thispagestyle{empty} % 首页不显示页码
+\clearpage
+
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\section{一.实验题目}
+
+\begin{enumerate}
+    \item \textbf{遗传算法（GA）求解TSP问题}：探索如何利用演化计算范式在复杂搜索空间中寻找大规模城市群的可行短路径。重点分析了种群规模、变异率、进化代数等超参数对算法寻优能力、收敛速度和早熟停滞的影响。
+\end{enumerate}
+
+\section{二.实验内容}
+
+\subsection{1.算法原理}
+
+\subsubsection{TSP（遗传算法）}
+遗传算法通过模拟自然选择和遗传机制进行搜索优化。本实验在TSP问题中的主要设计包括：
+\begin{itemize}
+    \item \textbf{编码与初始化}：采用自然数排列编码（路径表示）。距离矩阵通过二维坐标点预计算并缓存为一维数组，以加速适应度评估过程。
+    \item \textbf{适应度与选择}：适应度值设为路径总距离的倒数。选用锦标赛选择法，能够有效平衡选择压力和种群多样性。
+    \item \textbf{交叉与变异}：交叉算子使用顺序交叉，有效保留父代基因中的相对顺序以避免非法解；变异算子采用倒位变异，对随机片段进行反转以增加解空间的探索效率。
+    \item \textbf{种群控制与早停}：包括精英保留策略，并引入了容忍度机制，若连续多代最优解未改善，则触发早停以避免冗余计算。
+\end{itemize}
+
+
+\subsection{2.关键代码展示}
+
+\subsubsection{TSP关键代码：顺序交叉与倒位变异}
+\begin{minted}[linenos, breaklines, tabsize=4, fontsize=\small]{python}
+# 顺序交叉：截取父代一段作为子代核心部分，其余按序填补
+def order_crossover(parent1, parent2):
+    start, end = sorted(random.sample(range(len(parent1)), 2))
+    child = [None] * len(parent1)
+    child[start:end] = parent1[start:end]
+    p2_idx, c_idx = end, end
+    while None in child:
+        if parent2[p2_idx % len(parent2)] not in child:
+            child[c_idx % len(child)] = parent2[p2_idx % len(parent2)]
+            c_idx += 1
+        p2_idx += 1
+    return child
+
+# 倒位变异：反转路径中的连续一段，极大改善路径自交叠现象
+def inversion_mutation(chromosome):
+    start, end = sorted(random.sample(range(len(chromosome)), 2))
+    chromosome[start:end] = chromosome[start:end][::-1]
+    return chromosome
+\end{minted}
+\textbf{设计动机与影响}：单点交叉在TSP易产生非法路径，OX交叉则保留了部分边的相邻关系；倒位变异通过反转连续子序列，不仅比单点突变更能在宏观几何上打破路径交叉，还能更好跳出局部最优。
+
+
+\subsection{3.创新点\&优化}
+
+\begin{itemize}
+    \item \textbf{TSP距离缓存提速}：对节点间距离构造静态一维查找表 \texttt{dist\_matrix[i * N + j]}，适应度计算阶段的访存时间从高额浮点算术开销低
+\end{itemize}
+
+\section{三.实验结果及分析}
+
+\subsection{1.TSP：规模递进实验结果分析}
+
+随着城市规模逐渐扩大，参数配置的敏感度呈非线性增长。以下为相关测试集的运行及最优化对比与分析：
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/wi29.png}
+        \caption{wi29 测试表现（小规模）}
+        \label{fig:wi29}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/dj38.png}
+        \caption{dj38 测试表现（中规模）}
+        \label{fig:dj38}
+    \end{minipage}
+\end{figure}
+
+\textbf{现象说明}：在图 \ref{fig:wi29} (wi29) 和 图 \ref{fig:dj38} (dj38) 中，可以观察到遗传算法极其快速地锁定可行最优路径区间并在此停止迭代。即使使用默认参数，最优解的收敛都在百代级别达成。
+\textbf{反思}：GA在小规模TSP中因为搜索树剪枝需求低，局部多峰特征尚不明显，反而体现了较强通用能力。
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/qa194-1000.png}
+        \caption{qa194测试用例：进化1000代\\ {\small (可见部分路径存在严重的自交叠)}}
+        \label{fig:qa194-1000}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/qa194-2000.png}
+        \caption{qa194测试用例：进化2000代\\ {\small (增加代数后路径平滑度显著提升)}}
+        \label{fig:qa194-2000}
+    \end{minipage}
+    \vspace{0.3cm}
+\end{figure}
+
+\textbf{现象说明}：当节点增长到近200个（图 \ref{fig:qa194-1000}、图 \ref{fig:qa194-2000}）时，增加进化代数带来了肉眼可见的路径解交叉结消除（在2000代时路径平滑度显著提升）。但是如果变异率设置不合理，将极易停滞在某一局部陷阱中。
+\textbf{机制与反思}：单纯增加最大迭代次数会在庞大空间遭遇边际效用递减。在实际工程中这表明我们需要应用更加混合的机制，比如结合局部搜索算子（如2-opt）或增加大步长变异重启来摆脱早熟停滞。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/uy734-200.png}
+    \caption{uy734测试用例表现（200代）。图中可见上百个城市点相互连接，形成复杂的路径网。在大规模问题上，因为搜索空间的维度剧增，遗传算法很快停滞，只能获得局部的亚优解。}
+    \label{fig:uy734}
+\end{figure}
+
+\textbf{分析}：图 \ref{fig:uy734} 更是揭示了大规模TSP下（超700多城市），即使种群加大也只能形成类似聚集簇的效果，而全局结构由于探索受限依然较差。受限于算力和容忍度限制机制，算法很早在早期就退出了搜索，这也体现了朴素遗传算法在此的瓶颈。
+
+
+\section{四.参考资料}
+
+\begin{enumerate}
+    \item TSP测试库标准化实例数据(如 \texttt{dj38}, \texttt{qa194} 等)：TSPLIB, http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/
+    \item 中山大学人工智能课程理论讲义及相关指导书。
+\end{enumerate}
+
+\clearpage
+\end{document}
