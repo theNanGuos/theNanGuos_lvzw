@@ -30,6 +30,7 @@
 \contentsline {subsection}{\numberline {7.1}实验环境与方法}{18}{subsection.7.1}%
 \contentsline {subsection}{\numberline {7.2}工作流差异实验}{19}{subsection.7.2}%
 \contentsline {subsection}{\numberline {7.3}记忆实验}{20}{subsection.7.3}%
-\contentsline {subsection}{\numberline {7.4}工具与产物实验}{20}{subsection.7.4}%
-\contentsline {subsection}{\numberline {7.5}综合结果}{21}{subsection.7.5}%
-\contentsline {section}{\numberline {8}结论}{21}{section.8}%
+\contentsline {subsection}{\numberline {7.4}工具与产物实验}{22}{subsection.7.4}%
+\contentsline {subsection}{\numberline {7.5}会话追问与作品恢复实验}{24}{subsection.7.5}%
+\contentsline {subsection}{\numberline {7.6}综合结果}{26}{subsection.7.6}%
+\contentsline {section}{\numberline {8}结论}{26}{section.8}%

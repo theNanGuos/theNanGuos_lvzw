@@ -453,44 +453,123 @@ works/<generated audio, cover, waveform, demo>
 
 后端在 Python 3.12 环境下使用 uv 管理，前端使用 Node.js 与 npm；默认由根目录 \verb|./start.sh| 同时启动 FastAPI（\verb|127.0.0.1:8000|）和 Vite（\verb|127.0.0.1:5173|）。大语言模型使用 OpenAI Chat Completions 兼容接口，结构化输出方式可在函数调用、结构定义、对象模式与提示词内嵌 JSON 间切换；真实音乐生成由配置 KIE API 的 Suno 兼容供应商适配器完成。
 
-实验采用任务场景覆盖法，观察路由、状态交接、工具产物、记忆冲突和作品持久化。主要用例如表~\ref{tab:cases}。
-
-\begin{table}[H]
-    \centering
-    \caption{实验用例与观察点}
-    \label{tab:cases}
-    \begin{tabularx}{\textwidth}{L{1.2cm}L{4.0cm}Y}
-        \toprule
-        编号 & 输入场景 & 预期观察 \\
-        \midrule
-        用例一 & 流行/摇滚人声作品 & 路径包含作词南郭，生成内容包含语言和副歌记忆点，最终可播放。 \\
-        用例二 & 电子纯音乐 & 节奏南郭先于旋律南郭；不进入作词南郭；生成中间演示音频、两条音频和波形。 \\
-        用例三 & 嘻哈人声与影视配乐 & 嘻哈路径由节奏南郭先建立节拍，再进入作词南郭并包含演奏南郭；影视路径跳过作词南郭。 \\
-        用例四 & 已记录纯音乐偏好后要求粤语人声 & 当前明确请求覆盖长期偏好，选择人声工作流。 \\
-        用例五 & 明确提出以后使用英语 & 写入/替换语言偏好，记忆库显示值、置信度和证据次数。 \\
-        用例六 & 上传参考音频 & 只能按资产索引调用探测/预览/波形工具，不允许任意路径。 \\
-        用例七 & 作品完成后追问与恢复 & 会话内可回答作品信息，作品集可继续播放和下载。 \\
-        \bottomrule
-    \end{tabularx}
-\end{table}
+实验采用任务场景覆盖法，观察路由、状态交接、工具产物、记忆冲突和作品持久化。下面不再集中罗列用例，而是在介绍每个用例时直接给出对应的实际界面截图和观察结果。
 
 \subsection{工作流差异实验}
 
-用例一的执行路径见图~\ref{fig:pop-flow}：流行人声任务的画布由指挥南郭进入作词南郭，再逐步进入旋律南郭、和声南郭、节奏南郭与编曲南郭，歌词由此成为旋律与编曲的上游状态。用例二的完整执行结果见图~\ref{fig:studio}：雨夜电子纯音乐自动选择电子器乐乐团，节奏南郭提前建立律动，工作台显示状态经历建档、参考、生成和完成；最终获得一个 12 秒演示音频与两条 3 分 59 秒音频。用例三可由图~\ref{fig:hiphop-flow} 和图~\ref{fig:soundtrack-flow} 对照验证：嘻哈人声在作词南郭工作前先建立节拍和能量曲线，并通过演奏南郭约束说唱韵律、动态与人性化；影视配乐则正确跳过作词南郭，避免器乐提示词混入演唱要求。
+\noindent\textbf{用例一：流行/摇滚人声作品。}
+输入人声作品需求，观察工作流是否包含作词南郭，生成内容是否保留指定语言和副歌记忆点，并确认最终作品能够播放。实际执行路径如下图所示：画布由指挥南郭进入作词南郭，再逐步进入旋律南郭、和声南郭、节奏南郭与编曲南郭，歌词由此成为旋律与编曲的上游状态。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/流行人声编排.png}
+    \caption{实验用例一：流行人声作品的执行路径}
+    \label{fig:case-pop-flow}
+\end{figure}
+
+\noindent\textbf{用例二：电子纯音乐。}
+输入“创作一首雨夜氛围的电子纯音乐”，观察节奏南郭是否先于旋律南郭执行、流程是否跳过作词南郭，以及系统能否生成中间演示音频、最终音乐和波形。下图中系统自动选择电子器乐乐团，工作台状态依次经历建档、参考、生成和完成，最终获得一个 12 秒演示音频与两条 3 分 59 秒音频。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/创作台.png}
+    \caption{实验用例二：电子纯音乐的完整执行结果}
+    \label{fig:case-electronic-studio}
+\end{figure}
+
+\noindent\textbf{用例三：嘻哈人声与影视配乐。}
+分别输入嘻哈人声和影视配乐需求，对照观察两条路径的节点差异。嘻哈路径先由节奏南郭建立节拍和能量曲线，再进入作词南郭，并通过演奏南郭约束说唱韵律、动态与人性化；影视配乐路径则跳过作词南郭，避免器乐提示词混入演唱要求。两次执行的画布如下。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/嘻哈人声编排.png}
+    \caption{实验用例三：嘻哈人声工作流}
+    \label{fig:case-hiphop-flow}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/影视配乐编排.png}
+    \caption{实验用例三：影视配乐工作流}
+    \label{fig:case-soundtrack-flow}
+\end{figure}
 
 这些结果说明条件图能够根据任务改变分工顺序，只运行当前路径需要的南郭。角色复用也控制了实现复杂度：例如同一个和声南郭可在流行、古典、电子和爵士中工作，并根据上游状态与指挥南郭下发的指令生成对应方案。当前前端对古典与影视的核心节点展示较相似，尚未把乐谱导出等后端可选节点直接显示出来，用户对两者细粒度差异的感知仍可增强。
 
 \subsection{记忆实验}
 
-用例四的结果见图~\ref{fig:chat-conflict}：对话回复明确指出“这次要粤语歌，所以会有人声演唱”，并选择流行人声路径，没有机械地继承历史的纯音乐偏好。用例五的写入过程和持久化结果分别见图~\ref{fig:preference-write} 与图~\ref{fig:memory-view}：用户将默认语言从粤语修改为英语后，界面给出“偏好已记录”，长期记忆库显示英语及置信度；该修改会影响以后未指定语言的人声作品，但不会覆盖下一次显式选择的中文或粤语。
+\noindent\textbf{用例四：当前粤语人声要求与长期纯音乐偏好冲突。}
+先在长期记忆中记录纯音乐偏好，再明确要求创作粤语人声歌曲，观察当前请求能否覆盖历史偏好。下图中对话回复明确指出“这次要粤语歌，所以会有人声演唱”，随后选择了包含作词南郭的流行人声路径，没有机械继承历史的纯音乐偏好。
 
-用例七中，图~\ref{fig:short-memory} 显示系统能够结合会话内的工作流运行记录回答风格、配器与情绪，图~\ref{fig:portfolio} 则显示跨会话后仍可在作品集中发现并播放作品。短期记忆负责连续对话，长期记忆负责稳定偏好，项目文件负责作品事实。
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{images/与南郭先生对话.png}
+    \caption{实验用例四：当前粤语人声请求覆盖长期纯音乐偏好}
+    \label{fig:case-memory-conflict}
+\end{figure}
+
+\noindent\textbf{用例五：写入并替换长期语言偏好。}
+向系统明确提出“以后使用英语作为创作语言”，观察偏好是否写入长期记忆，以及界面能否显示规范化后的值、置信度和证据次数。第一张图展示界面给出“偏好已记录”的即时反馈，第二张图展示英语偏好已经持久化到记忆库。该偏好会影响以后未指定语言的人声作品，但不会覆盖下一次显式选择的中文或粤语。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/记忆用户偏好（长期记忆）.png}
+    \caption{实验用例五：从明确陈述中写入语言偏好}
+    \label{fig:case-preference-write}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/记忆库（长期记忆）.png}
+    \caption{实验用例五：长期记忆库中的持久化结果}
+    \label{fig:case-memory-view}
+\end{figure}
+
+上述结果表明，长期记忆能够保存稳定偏好，同时当前显式请求始终拥有更高优先级，避免历史画像干扰本次创作。
 
 \subsection{工具与产物实验}
 
-用例六的输入入口见图~\ref{fig:audio-input}，它把参考音频与其他创作参数分开接收；工具结果是结构化技术事实，并可生成可供人工检查的预览和波形。最终生成阶段又使用另一组确定性能力：本地演示音频合成、外部音乐生成、下载音频探测和波形渲染。图~\ref{fig:audio-result} 中两条曲目波形形态明显不同，播放器与波形为比较段落能量提供了直接依据。
+\noindent\textbf{用例六：上传参考音频并检查工具产物。}
+在创作输入中上传参考音频，观察参考南郭是否只能按资产索引调用探测、预览和波形工具，而不能访问任意路径。第一张图展示参考音频与其他创作参数分开接收；工具返回的是结构化技术事实，并可生成供人工检查的预览和波形。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[height=0.72\textheight]{images/创作输入——可上传音频（工具调用）.png}
+    \caption{实验用例六：上传参考音频的创作入口}
+    \label{fig:case-audio-input}
+\end{figure}
+
+最终生成阶段继续调用本地演示音频合成、外部音乐生成、下载音频探测和波形渲染等确定性能力。下图中两条曲目的波形形态明显不同，播放器与波形为比较段落能量提供了直接依据。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/音乐生成可视化（工具调用）.png}
+    \caption{实验用例六：演示音频、最终音乐与波形工具产物}
+    \label{fig:case-audio-result}
+\end{figure}
 
 当前演示音频根据提示词字符确定频率，并混合三个正弦音生成轻量参考。其验证范围包括工具链、格式和播放界面，未覆盖旋律南郭计划的真实试听。参考音频工具目前提供元数据和宏观波形，尚不具备调性、和弦、节拍或乐器识别能力。实验结果证明多智能体与工具链可以完整执行，专业音频理解与编曲质量仍需进一步评价。
+
+\subsection{会话追问与作品恢复实验}
+
+\noindent\textbf{用例七：作品完成后的追问与恢复。}
+作品生成完成后，在同一会话中继续追问作品风格、配器与情绪，再进入作品集检查跨会话恢复、播放和下载能力。第一张图显示系统能够结合会话内的工作流运行记录回答作品信息；第二张图显示跨会话后仍可在作品集中发现并使用该作品。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{images/会话内短期记忆.png}
+    \caption{实验用例七：根据会话内作品记录回答后续问题}
+    \label{fig:case-short-memory}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/作品集.png}
+    \caption{实验用例七：在作品集中恢复、播放和下载作品}
+    \label{fig:case-portfolio}
+\end{figure}
+
+该用例表明，短期记忆负责连续对话，项目文件负责作品事实和跨会话恢复；二者与长期偏好记忆相互补充，使作品信息既能在当前会话中被追问，也能在后续使用中重新发现。
 
 \subsection{综合结果}
 
