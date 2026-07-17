@@ -1,6 +1,6 @@
 # the Nan Guos - 南郭先生们
 
-一个基于 LangGraph 的本地多智能体音乐创作实验项目。“南郭先生”是南郭乐团的对外代表，负责用户对话、记忆读取和受约束的工作流分配；Conductor Agent 负责理解创作需求和选择音乐工作流，作词、作曲、编曲等 Agent 负责各自领域，Prompt Compiler 最终生成供 Suno 兼容服务使用的提示词。
+一个基于 LangGraph 的本地多智能体音乐创作实验项目。“对话南郭”是南郭乐团的对外代表，负责用户对话、记忆读取和受约束的工作流分配；“指挥南郭”负责理解创作需求和选择音乐工作流，作词、旋律、编曲等南郭负责各自领域，“提示词南郭”最终生成供 Suno 兼容服务使用的提示词。
 
 ## 当前能力
 
@@ -8,34 +8,34 @@
 
 ```text
 pop_vocal:
-Audio Reference -> Conductor -> Lyrics -> Melody -> Harmony -> Rhythm -> Arrange -> Sound Design -> Mix Review -> Prompt Compiler
+参考南郭 -> 指挥南郭 -> 作词南郭 -> 旋律南郭 -> 和声南郭 -> 节奏南郭 -> 编曲南郭 -> 音色南郭 -> 审听南郭 -> 提示词南郭
 
 classical_instrumental:
-Audio Reference -> Conductor -> Melody -> Harmony -> Arrange -> optional Score Export -> Sound Design -> Mix Review -> Prompt Compiler
+参考南郭 -> 指挥南郭 -> 旋律南郭 -> 和声南郭 -> 编曲南郭 -> 可选乐谱导出 -> 音色南郭 -> 审听南郭 -> 提示词南郭
 
 electronic_instrumental:
-Audio Reference -> Conductor -> Rhythm -> Melody -> Harmony -> Arrange -> Sound Design -> Mix Review -> Prompt Compiler
+参考南郭 -> 指挥南郭 -> 节奏南郭 -> 旋律南郭 -> 和声南郭 -> 编曲南郭 -> 音色南郭 -> 审听南郭 -> 提示词南郭
 
 soundtrack_score:
-Audio Reference -> Conductor -> Melody -> Harmony -> Arrange -> Sound Design -> Mix Review -> Prompt Compiler
+参考南郭 -> 指挥南郭 -> 旋律南郭 -> 和声南郭 -> 编曲南郭 -> 音色南郭 -> 审听南郭 -> 提示词南郭
 
 jazz_ensemble:
-Audio Reference -> Conductor -> Harmony -> Rhythm -> Melody -> Improvisation -> Performance -> Arrange -> Sound Design -> Mix Review -> Prompt Compiler
+参考南郭 -> 指挥南郭 -> 和声南郭 -> 节奏南郭 -> 旋律南郭 -> 即兴南郭 -> 演奏南郭 -> 编曲南郭 -> 音色南郭 -> 审听南郭 -> 提示词南郭
 
 rock_vocal:
-Audio Reference -> Conductor -> Lyrics -> Melody -> Harmony -> Rhythm -> Performance -> Arrange -> Sound Design -> Mix Review -> Prompt Compiler
+参考南郭 -> 指挥南郭 -> 作词南郭 -> 旋律南郭 -> 和声南郭 -> 节奏南郭 -> 演奏南郭 -> 编曲南郭 -> 音色南郭 -> 审听南郭 -> 提示词南郭
 
 folk_acoustic:
-Audio Reference -> Conductor -> Lyrics -> Melody -> Harmony -> Performance -> Arrange -> Sound Design -> Mix Review -> Prompt Compiler
+参考南郭 -> 指挥南郭 -> 作词南郭 -> 旋律南郭 -> 和声南郭 -> 演奏南郭 -> 编曲南郭 -> 音色南郭 -> 审听南郭 -> 提示词南郭
 
 hiphop_vocal:
-Audio Reference -> Conductor -> Rhythm -> Lyrics -> Melody -> Harmony -> Performance -> Arrange -> Sound Design -> Mix Review -> Prompt Compiler
+参考南郭 -> 指挥南郭 -> 节奏南郭 -> 作词南郭 -> 旋律南郭 -> 和声南郭 -> 演奏南郭 -> 编曲南郭 -> 音色南郭 -> 审听南郭 -> 提示词南郭
 ```
 
-Agent 使用 Pydantic 模型传递结构化状态。不同音乐类型会组合不同节点：人声流行包含 Lyrics，电子器乐先做 Rhythm，古典和影视配乐跳过 Lyrics 并可根据 Melody Agent 的 `score_spec` 在项目 `artifacts/` 目录导出 MusicXML 与 MIDI。爵士先建立和声与 swing 律动，再由 Improvisation 和 Performance 规划独奏、comping 与乐手互动；摇滚、原声民谣和嘻哈则分别围绕乐队动态、叙事演奏和 beat/flow 使用不同节点顺序。
+Agent 使用 Pydantic 模型传递结构化状态。不同音乐类型会组合不同节点：人声流行包含作词南郭，电子器乐先由节奏南郭工作，古典和影视配乐跳过作词南郭，并可根据旋律南郭的 `score_spec` 在项目 `artifacts/` 目录导出 MusicXML 与 MIDI。爵士先建立和声与 swing 律动，再由即兴南郭和演奏南郭规划独奏、comping 与乐手互动；摇滚、原声民谣和嘻哈则分别围绕乐队动态、叙事演奏和 beat/flow 使用不同节点顺序。
 
 - FastAPI 提供本地项目、音频上传和工作流运行接口。
-- 南郭先生（Chat Agent）按 session 保存独立短期上下文，并把明确偏好规范化后合并到跨 session 用户画像。当前请求和显式创作参数优先于长期偏好。
+- 对话南郭按 session 保存独立短期上下文，并把明确偏好规范化后合并到跨 session 用户画像。当前请求和显式创作参数优先于长期偏好。
 - React 工作区提供对话入口、独立作品集与记忆库页面、后台生成进度、项目恢复、精确创作表单和工作流画布。记忆库支持查看、编辑、删除和清空长期偏好。
 - KIE/Suno 接入通过独立 provider 封装，默认不会产生真实请求。
 
@@ -94,7 +94,7 @@ KIE/Suno provider 按 Kie 文档调用 `POST /api/v1/generate`。提交请求需
 ```
 
 脚本会在缺少 `.venv` 或 `frontend/node_modules` 时自动安装依赖，并同时启动后端和前端。API 默认位于 `http://127.0.0.1:8000`，交互文档位于 `/docs`，创作工作台位于 `http://127.0.0.1:5173`。按 `Ctrl+C` 会停止两个开发服务。
-前端默认进入“南郭先生”对话。南郭先生代表南郭乐团理解用户需求、读取记忆，并且只会选择白名单动作与预设工作流；对话消息可以附带参考音频，附件会随作品进入 Audio Reference Agent 分析。当用户要求开始创作时，后端立即返回 run id，并在本地后台线程中执行工作流。前端轮询 Run 状态显示阶段进度。生成完成后，Suno 音频和封面会分别以歌曲名称保存到 `works/` 下，并在独立作品集页面展示封面、风格、时长、进度、播放和下载入口。创作台可以选择流派、语言、主要乐器、预设乐团并上传 demo 音频。
+前端默认进入“对话南郭”对话。对话南郭代表南郭乐团理解用户需求、读取记忆，并且只会选择白名单动作与预设工作流；对话消息可以附带参考音频，附件会随作品进入参考南郭分析。当用户要求开始创作时，后端立即返回 run id，并在本地后台线程中执行工作流。前端轮询 Run 状态显示阶段进度。生成完成后，Suno 音频和封面会分别以歌曲名称保存到 `works/` 下，并在独立作品集页面展示封面、风格、时长、进度、播放和下载入口。创作台可以选择流派、语言、主要乐器、预设乐团并上传 demo 音频。
 
 长期记忆保存在 `data/memory/user_profile.json`，包括规范化偏好和工作流使用次数。相同偏好会增加证据次数和置信度，同一偏好 key 的新明确值会替换旧值。创作前系统会生成 `effective_preferences`：预设乐团与创作台显式参数优先，其次是当前请求，最后才使用长期默认值。新偏好写入后前端会显示轻量提示，并可在“记忆库”页面管理。
 
@@ -111,7 +111,7 @@ npm run dev
 
 主要新增接口：
 
-- `POST /api/sessions`、`POST /api/sessions/{id}/messages`：创建会话并由南郭先生回复、路由。
+- `POST /api/sessions`、`POST /api/sessions/{id}/messages`：创建会话并由对话南郭回复、路由。
 - `POST /api/sessions/{id}/assets`：上传随对话消息发送的参考音频。
 - `GET /api/sessions`、`GET/PATCH/DELETE /api/sessions/{id}`：列出、恢复、重命名和删除独立会话。
 - `GET /api/portfolio`：读取已完成和正在生成的本地作品。
@@ -132,10 +132,10 @@ npm run dev
 
 这些工具都使用参数列表调用命令行程序，不拼接 shell 字符串；命令失败、缺少工具或超时会抛出清晰错误。使用前需在本机安装对应命令行工具，例如 `ffmpeg` 和 `ffprobe`。
 
-`skills/` 目录提供按职能划分的 Agent 技能说明。Agent 初始化时会把对应 `SKILL.md` 加载进系统提示词，例如 Lyrics Agent 加载参考音频作词技能，Melody Agent 加载 demo 音频规划技能，Arrange Agent 加载音频分析编曲技能，Prompt Compiler 加载 Suno 生成交接技能。
+`skills/` 目录提供按职能划分的 Agent 技能说明。Agent 初始化时会把对应 `SKILL.md` 加载进系统提示词，例如作词南郭加载参考音频作词技能，旋律南郭加载 demo 音频规划技能，编曲南郭加载音频分析编曲技能，提示词南郭加载 Suno 生成交接技能。
 
-当 `LLM_STRUCTURED_OUTPUT_METHOD=function_calling` 或 `json_schema` 时，LLM 初始化会回到 `ChatOpenAI`，上传参考音频会先进入 Audio Reference Agent。该节点使用 `llm.bind_tools(...)` 让模型调用白名单工具，例如 `inspect_uploaded_audio`、`create_uploaded_audio_preview` 和 `render_uploaded_audio_waveform`；工具参数只允许使用上传资产索引，不允许模型传任意本地路径。
-Prompt Compiler 产出最终提示词后，API 会受控调用 `render_prompt_demo_audio` 生成中间 demo 音频。KIE/Suno 音乐下载完成后，API 会受控调用 `summarize_generated_audio` 和 `render_waveform` 生成音频元数据与波形图；这些后处理工具失败时会写入错误字段和日志，不阻断主音乐生成结果。
+当 `LLM_STRUCTURED_OUTPUT_METHOD=function_calling` 或 `json_schema` 时，LLM 初始化会回到 `ChatOpenAI`，上传参考音频会先进入参考南郭。该节点使用 `llm.bind_tools(...)` 让模型调用白名单工具，例如 `inspect_uploaded_audio`、`create_uploaded_audio_preview` 和 `render_uploaded_audio_waveform`；工具参数只允许使用上传资产索引，不允许模型传任意本地路径。
+提示词南郭产出最终提示词后，API 会受控调用 `render_prompt_demo_audio` 生成中间 demo 音频。KIE/Suno 音乐下载完成后，API 会受控调用 `summarize_generated_audio` 和 `render_waveform` 生成音频元数据与波形图；这些后处理工具失败时会写入错误字段和日志，不阻断主音乐生成结果。
 
 ## 测试
 

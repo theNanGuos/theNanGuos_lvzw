@@ -16,18 +16,18 @@ score tools / music generation providers
 
 当前提供多个受约束的预设，不同音乐类型复用节点但走不同路径：
 
-- `pop_vocal`：Audio Reference、Conductor、Lyrics、Melody、Harmony、Rhythm、Arrange、Sound Design、Mix Review、Prompt Compiler。
-- `classical_instrumental`：Audio Reference、Conductor、Melody、Harmony、Arrange、可选 Score Export、Sound Design、Mix Review、Prompt Compiler。
-- `electronic_instrumental`：Audio Reference、Conductor、Rhythm、Melody、Harmony、Arrange、Sound Design、Mix Review、Prompt Compiler。
-- `soundtrack_score`：Audio Reference、Conductor、Melody、Harmony、Arrange、Sound Design、Mix Review、Prompt Compiler。
-- `jazz_ensemble`：Audio Reference、Conductor、Harmony、Rhythm、Melody、Improvisation、Performance、Arrange、Sound Design、Mix Review、Prompt Compiler。
-- `rock_vocal`：Audio Reference、Conductor、Lyrics、Melody、Harmony、Rhythm、Performance、Arrange、Sound Design、Mix Review、Prompt Compiler。
-- `folk_acoustic`：Audio Reference、Conductor、Lyrics、Melody、Harmony、Performance、Arrange、Sound Design、Mix Review、Prompt Compiler。
-- `hiphop_vocal`：Audio Reference、Conductor、Rhythm、Lyrics、Melody、Harmony、Performance、Arrange、Sound Design、Mix Review、Prompt Compiler。
+- `pop_vocal`：参考南郭、指挥南郭、作词南郭、旋律南郭、和声南郭、节奏南郭、编曲南郭、音色南郭、审听南郭、提示词南郭。
+- `classical_instrumental`：参考南郭、指挥南郭、旋律南郭、和声南郭、编曲南郭、可选乐谱导出、音色南郭、审听南郭、提示词南郭。
+- `electronic_instrumental`：参考南郭、指挥南郭、节奏南郭、旋律南郭、和声南郭、编曲南郭、音色南郭、审听南郭、提示词南郭。
+- `soundtrack_score`：参考南郭、指挥南郭、旋律南郭、和声南郭、编曲南郭、音色南郭、审听南郭、提示词南郭。
+- `jazz_ensemble`：参考南郭、指挥南郭、和声南郭、节奏南郭、旋律南郭、即兴南郭、演奏南郭、编曲南郭、音色南郭、审听南郭、提示词南郭。
+- `rock_vocal`：参考南郭、指挥南郭、作词南郭、旋律南郭、和声南郭、节奏南郭、演奏南郭、编曲南郭、音色南郭、审听南郭、提示词南郭。
+- `folk_acoustic`：参考南郭、指挥南郭、作词南郭、旋律南郭、和声南郭、演奏南郭、编曲南郭、音色南郭、审听南郭、提示词南郭。
+- `hiphop_vocal`：参考南郭、指挥南郭、节奏南郭、作词南郭、旋律南郭、和声南郭、演奏南郭、编曲南郭、音色南郭、审听南郭、提示词南郭。
 
-Conductor 只能选择已注册的预设。所有 LLM 节点使用 Pydantic 结构化输出，关键领域数据不从自由文本消息中解析。
+指挥南郭只能选择已注册的预设。所有 LLM 节点使用 Pydantic 结构化输出，关键领域数据不从自由文本消息中解析。
 
-`Improvisation Agent` 只负责爵士路径的独奏者、solo 曲式、即兴语汇、乐手互动和边界；`Performance Agent` 负责爵士、摇滚、民谣与嘻哈路径的演奏法、动态、合奏关系和人性化细节。二者都不直接编译供应商提示词，结果由 Arrange、Sound Design 和 Prompt Compiler 继续消费。
+`即兴南郭`只负责爵士路径的独奏者、solo 曲式、即兴语汇、乐手互动和边界；`演奏南郭`负责爵士、摇滚、民谣与嘻哈路径的演奏法、动态、合奏关系和人性化细节。二者都不直接编译供应商提示词，结果由编曲南郭、音色南郭和提示词南郭继续消费。
 
 ## 本地数据
 
@@ -56,7 +56,7 @@ data/projects/<project-id>/
 - 行为记忆：各预设工作流的实际完成次数。
 - 情景记忆：本地项目和作品是事实来源，记忆上下文只引用最近作品，不复制音频数据。
 
-Chat Agent 只提取用户明确表达的候选记忆。`LocalMemoryStore` 负责 key 规范化、重复证据增强和冲突值替换。执行工作流前会确定性解析 `effective_preferences`，优先级为显式项目参数和预设、当前请求、长期偏好、系统默认值。Conductor 和 Prompt Compiler 只使用解析后的有效偏好补充未指定内容。
+对话南郭只提取用户明确表达的候选记忆。`LocalMemoryStore` 负责 key 规范化、重复证据增强和冲突值替换。执行工作流前会确定性解析 `effective_preferences`，优先级为显式项目参数和预设、当前请求、长期偏好、系统默认值。指挥南郭和提示词南郭只使用解析后的有效偏好补充未指定内容。
 
 ## 外部能力
 
