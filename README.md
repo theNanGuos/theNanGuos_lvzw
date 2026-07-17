@@ -1,199 +1,123 @@
-# the Nan Guos - 南郭先生们
+# theNanGuos：南郭先生们
 
-![](icon.png)
+![theNanGuos](icon.png)
 
-一个基于 LangGraph 的本地多智能体音乐创作实验项目。“对话南郭”是南郭乐团的对外代表，负责用户对话、记忆读取和受约束的工作流分配；“指挥南郭”负责理解创作需求和选择音乐工作流，作词、旋律、编曲等南郭负责各自领域，“提示词南郭”最终生成供 Suno 兼容服务使用的提示词。
+theNanGuos 是一个基于 LangGraph 的本地多智能体音乐创作实验项目。系统把作词、旋律、和声、节奏、编曲、音色和审听等职责交给不同的“南郭”，再由对话南郭理解需求、指挥南郭选择受约束的工作流，最终生成音乐提示词、可选乐谱、演示音频和完整音乐。
 
-## 当前能力
+项目提供 FastAPI 后端与 React 前端，支持自然语言创作、参考音频上传、工作流进度展示、长期偏好记忆以及本地作品播放和下载。项目数据和生成产物均保存在本地文件系统。
 
-目前实现多个可组合预设工作流：
+## 快速启动
 
-```text
-pop_vocal:
-参考南郭 -> 指挥南郭 -> 作词南郭 -> 旋律南郭 -> 和声南郭 -> 节奏南郭 -> 编曲南郭 -> 音色南郭 -> 审听南郭 -> 提示词南郭
+### 1. 准备运行环境
 
-classical_instrumental:
-参考南郭 -> 指挥南郭 -> 旋律南郭 -> 和声南郭 -> 编曲南郭 -> 可选乐谱导出 -> 音色南郭 -> 审听南郭 -> 提示词南郭
+根目录的 `start.sh` 目前仅支持 Linux。脚本会自动检查并准备以下依赖：
 
-electronic_instrumental:
-参考南郭 -> 指挥南郭 -> 节奏南郭 -> 旋律南郭 -> 和声南郭 -> 编曲南郭 -> 音色南郭 -> 审听南郭 -> 提示词南郭
+- Python 3.12 与 uv
+- Node.js 24 LTS 与 npm
+- FFmpeg 与 ffprobe
+- Python 和前端项目依赖
 
-soundtrack_score:
-参考南郭 -> 指挥南郭 -> 旋律南郭 -> 和声南郭 -> 编曲南郭 -> 音色南郭 -> 审听南郭 -> 提示词南郭
+缺少系统工具时，脚本可能需要 root 或 `sudo` 权限，并需要能够访问系统软件源、Python 软件源和 npm。
 
-jazz_ensemble:
-参考南郭 -> 指挥南郭 -> 和声南郭 -> 节奏南郭 -> 旋律南郭 -> 即兴南郭 -> 演奏南郭 -> 编曲南郭 -> 音色南郭 -> 审听南郭 -> 提示词南郭
+### 2. 配置服务
 
-rock_vocal:
-参考南郭 -> 指挥南郭 -> 作词南郭 -> 旋律南郭 -> 和声南郭 -> 节奏南郭 -> 演奏南郭 -> 编曲南郭 -> 音色南郭 -> 审听南郭 -> 提示词南郭
-
-folk_acoustic:
-参考南郭 -> 指挥南郭 -> 作词南郭 -> 旋律南郭 -> 和声南郭 -> 演奏南郭 -> 编曲南郭 -> 音色南郭 -> 审听南郭 -> 提示词南郭
-
-hiphop_vocal:
-参考南郭 -> 指挥南郭 -> 节奏南郭 -> 作词南郭 -> 旋律南郭 -> 和声南郭 -> 演奏南郭 -> 编曲南郭 -> 音色南郭 -> 审听南郭 -> 提示词南郭
-```
-
-Agent 使用 Pydantic 模型传递结构化状态。不同音乐类型会组合不同节点：人声流行包含作词南郭，电子器乐先由节奏南郭工作，古典和影视配乐跳过作词南郭，并可根据旋律南郭的 `score_spec` 在项目 `artifacts/` 目录导出 MusicXML 与 MIDI。爵士先建立和声与 swing 律动，再由即兴南郭和演奏南郭规划独奏、comping 与乐手互动；摇滚、原声民谣和嘻哈则分别围绕乐队动态、叙事演奏和 beat/flow 使用不同节点顺序。
-
-- FastAPI 提供本地项目、音频上传和工作流运行接口。
-- 对话南郭按 session 保存独立短期上下文，并把明确偏好规范化后合并到跨 session 用户画像。当前请求和显式创作参数优先于长期偏好。
-- React 工作区提供对话入口、独立作品集与记忆库页面、后台生成进度、项目恢复、精确创作表单和工作流画布。记忆库支持查看、编辑、删除和清空长期偏好。
-- KIE/Suno 接入通过独立 provider 封装，默认不会产生真实请求。
-
-## 环境
-
-- Linux 与 Bash
-- 可访问 uv、Node.js、Python 和 npm 软件源的网络
-- 当系统缺少基础工具时，可以使用 root 账户或 `sudo`
-- 一个兼容 OpenAI Chat Completions API 的模型服务
-
-根目录的 `start.sh` 会自动准备其余依赖。脚本支持使用 `apt-get`、`dnf`、`yum`、`pacman`、`zypper` 或 `apk` 安装 `curl`/`wget`、解压与校验工具以及 `ffmpeg`/`ffprobe`；随后安装 uv、Python 3.12、满足 Vite 要求的 Node.js 24 LTS、后端依赖和前端依赖。uv 使用官方安装方式：
+在项目根目录复制环境变量模板：
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 没有 curl 时
-wget -qO- https://astral.sh/uv/install.sh | sh
+cp .env.example .env
 ```
 
-脚本使用 uv 官方提供的非托管安装目录选项，避免修改用户的 shell 配置；Node.js 从官方 Linux 二进制包安装并校验 SHA-256。Alpine Linux 则通过 `apk` 安装 Node.js。已经满足版本要求的 uv、Node.js 和 npm 会直接复用。
-
-创建 `.env`：
+编辑 `.env`，至少填写兼容 OpenAI Chat Completions API 的模型服务：
 
 ```dotenv
 MODEL_NAME=your-model
 OPENAI_API_KEY=your-api-key
 OPENAI_BASE_URL=https://your-openai-compatible-endpoint/v1
-
-# 使用 function_calling/json_schema 时会通过 ChatOpenAI 启用 structured output 和 tool calling
-# 若兼容服务不支持工具调用，可退回 json_mode/prompt_json
 LLM_STRUCTURED_OUTPUT_METHOD=function_calling
+```
 
-# 仅使用 --generate 时需要
+如果模型服务不支持函数调用或结构化输出，可改为：
+
+```dotenv
+LLM_STRUCTURED_OUTPUT_METHOD=prompt_json
+```
+
+如需生成完整音乐，还需要配置 KIE/Suno 兼容服务：
+
+```dotenv
 KIE_API_KEY=your-kie-api-key
 KIE_BASE_URL=https://api.kie.ai
 KIE_MODEL=V4
 KIE_CALLBACK_URL=https://your-public-host.example.com/kie/callback
-
-# 器乐 custom mode 未从工作流传入风格时使用
-KIE_STYLE=Classical
-
-# 可选：本地日志配置
-LOG_DIR=_logs
-LOG_LEVEL=INFO
-LOG_MAX_BYTES=5242880
-LOG_BACKUP_COUNT=5
+KIE_STYLE=Pop
 ```
 
-安装依赖并运行 CLI：
+未配置 KIE/Suno 时仍可启动项目，并通过下文不带 `--generate` 的命令行方式生成音乐提示词；网页端生成完整音乐需要上述配置。
 
-```bash
-uv sync
-uv run python main.py "生成一首温暖的中文民谣"
-```
+### 3. 启动项目
 
-默认只输出最终提示词，不会调用音乐生成服务。显式传入 `--generate` 才会使用 `lib/suno.py` 中配置的 provider：
-
-```bash
-uv run python main.py "生成一首温暖的中文民谣" --generate
-```
-
-KIE/Suno provider 按 Kie 文档调用 `POST /api/v1/generate`。提交请求需要 Bearer token、`model`、`customMode`、`instrumental` 和 `callBackUrl`；本项目提交后仍会轮询 `/api/v1/generate/record-info` 下载生成结果。器乐生成会使用 custom mode，因此必须有 `style` 和 `title`，CLI 会优先使用工作流产生的标题和风格。provider 会在请求前按所选模型自动裁剪 `prompt`、`style` 和 `title`，确保不超过 Kie 的字符限制；发生裁剪时会写入日志。
-
-一键启动本地开发环境：
+在项目根目录运行：
 
 ```bash
 ./start.sh
 ```
 
-首次运行时，脚本会：
+首次启动会安装和同步依赖，之后会同时运行：
 
-1. 检查 Linux、项目目录和可用包管理器；
-2. 在缺少基础工具时请求 root 或 `sudo` 权限并安装系统依赖；
-3. 自动安装 uv、Python 3.12 和 Node.js 24 LTS；
-4. 使用 `uv sync --locked` 和 `npm ci` 安装锁定的项目依赖；
-5. 若 `.env` 不存在，则从 `.env.example` 创建该文件并暂停，待填写 `OPENAI_API_KEY` 和 `OPENAI_BASE_URL` 后重新运行；
-6. 同时启动 FastAPI 与 Vite，并在任一服务退出或收到 `Ctrl+C` 时清理两个进程。
+- 前端工作区：<http://127.0.0.1:5173>
+- 后端 API：<http://127.0.0.1:8000>
+- API 文档：<http://127.0.0.1:8000/docs>
 
-API 默认位于 `http://127.0.0.1:8000`，交互文档位于 `/docs`，创作工作台位于 `http://127.0.0.1:5173`。只准备依赖、不启动服务时可以运行：
+按 `Ctrl+C` 会同时停止前后端服务。
+
+只准备依赖、不启动服务：
 
 ```bash
 BOOTSTRAP_ONLY=1 ./start.sh
 ```
 
-可以通过 `PYTHON_VERSION`、`NODE_MAJOR`、`BACKEND_HOST`、`BACKEND_PORT`、`FRONTEND_HOST` 和 `FRONTEND_PORT` 覆盖默认配置。若系统软件源不提供 `ffmpeg`，脚本会停止并给出可操作错误；需要先为对应发行版启用包含 `ffmpeg` 的可信软件源。
+## 使用方法
 
-前端默认进入“对话南郭”对话。对话南郭代表南郭乐团理解用户需求、读取记忆，并且只会选择白名单动作与预设工作流；对话消息可以附带参考音频，附件会随作品进入参考南郭分析。当用户要求开始创作时，后端立即返回 run id，并在本地后台线程中执行工作流。前端轮询 Run 状态显示阶段进度。生成完成后，Suno 音频和封面会分别以歌曲名称保存到 `works/` 下，并在独立作品集页面展示封面、风格、时长、进度、播放和下载入口。创作台可以选择流派、语言、主要乐器、预设乐团并上传 demo 音频。
+启动后打开 <http://127.0.0.1:5173>，可以通过四个主要页面使用系统：
 
-长期记忆保存在 `data/memory/user_profile.json`，包括规范化偏好和工作流使用次数。相同偏好会增加证据次数和置信度，同一偏好 key 的新明确值会替换旧值。创作前系统会生成 `effective_preferences`：预设乐团与创作台显式参数优先，其次是当前请求，最后才使用长期默认值。新偏好写入后前端会显示轻量提示，并可在“记忆库”页面管理。
+1. **对话**：直接描述想创作的音乐，例如“生成一首温暖的中文民谣”。也可以上传参考音频，由系统创建项目并选择合适的乐团工作流。
+2. **创作台**：填写作品名称、预设乐团、流派、语言、主要乐器和创作构想，上传参考音频后开始生成，并查看智能体节点与执行进度。
+3. **作品集**：查看正在生成或已经完成的作品，播放生成音频、查看波形并下载文件。
+4. **记忆库**：查看和管理系统记录的语言、流派、乐器及人声偏好。当前请求和创作台中的明确设置始终优先于长期偏好。
 
-如需手动启动，分别运行：
+系统支持流行人声、古典器乐、电子器乐、影视配乐、爵士乐团、摇滚人声、原声民谣和嘻哈人声等预设。选择“自动判断”时，指挥南郭会根据当前需求决定工作流；器乐工作流会自动跳过作词环节。
+
+## 命令行使用
+
+只运行智能体工作流并输出最终音乐提示词：
+
+```bash
+uv run python main.py "生成一首温暖的中文民谣"
+```
+
+同时调用已配置的 KIE/Suno 服务生成音乐：
+
+```bash
+uv run python main.py "生成一首温暖的中文民谣" --generate
+```
+
+## 手动启动
+
+如果依赖已经准备完成，也可以分别启动后端和前端：
 
 ```bash
 uv run uvicorn app.api:app --reload
+```
 
+在另一个终端中运行：
+
+```bash
 cd frontend
 npm run dev
 ```
 
-项目元数据、上传音频和运行结果分别保存在 `data/projects/<project-id>/` 下的 `project.json`、`assets/` 和 `runs/` 中。会话短期记忆和待关联的聊天音频分别保存在 `data/sessions/<session-id>/session.json` 与 `assets/`，跨会话偏好和工作流统计保存在 `data/memory/user_profile.json`。这些数据都使用临时文件替换方式写入，不需要数据库或消息队列。
+## 本地数据
 
-主要新增接口：
-
-- `POST /api/sessions`、`POST /api/sessions/{id}/messages`：创建会话并由对话南郭回复、路由。
-- `POST /api/sessions/{id}/assets`：上传随对话消息发送的参考音频。
-- `GET /api/sessions`、`GET/PATCH/DELETE /api/sessions/{id}`：列出、恢复、重命名和删除独立会话。
-- `GET /api/portfolio`：读取已完成和正在生成的本地作品。
-- `GET/DELETE /api/memory`：读取或清空本地长期记忆。
-- `PATCH/DELETE /api/memory/preferences/{key}`：编辑或删除单条长期偏好。
-- `POST /api/projects/{id}/runs/async`：启动后台运行并立即返回 Run。
-- `GET /api/projects/{id}/runs/{run_id}`：读取进度、阶段、错误和最终产物。
-运行日志默认写入 `_logs/`，包括 API 工作流阶段、Agent 结构化输出、KIE/Suno 提交和轮询状态，可通过上面的 `LOG_*` 环境变量调整。
-
-## 工具调用
-
-`tools/` 目录提供可被 API、LangGraph 节点或 Agent wrapper 调用的确定性工具：
-
-- `inspect_audio`：调用 `ffprobe` 读取用户上传音频的时长、编码、采样率、声道、码率和文件大小。
-- `trim_audio_preview`：调用 `ffmpeg` 从上传音频生成短预览片段并做基础响度规范化。
-- `render_prompt_demo_audio`：根据提示词生成一个轻量 demo 音频，适合作为中间参考产物。
-- `render_waveform` / `summarize_generated_audio`：对 Suno/KIE 生成的音频做元数据分析和波形图可视化。
-
-这些工具都使用参数列表调用命令行程序，不拼接 shell 字符串；命令失败、缺少工具或超时会抛出清晰错误。`start.sh` 会自动安装 `ffmpeg` 和 `ffprobe`；手动启动项目时需自行安装。
-
-`skills/` 目录提供按职能划分的 Agent 技能说明。Agent 初始化时会把对应 `SKILL.md` 加载进系统提示词，例如作词南郭加载参考音频作词技能，旋律南郭加载 demo 音频规划技能，编曲南郭加载音频分析编曲技能，提示词南郭加载 Suno 生成交接技能。
-
-当 `LLM_STRUCTURED_OUTPUT_METHOD=function_calling` 或 `json_schema` 时，LLM 初始化会回到 `ChatOpenAI`，上传参考音频会先进入参考南郭。该节点使用 `llm.bind_tools(...)` 让模型调用白名单工具，例如 `inspect_uploaded_audio`、`create_uploaded_audio_preview` 和 `render_uploaded_audio_waveform`；工具参数只允许使用上传资产索引，不允许模型传任意本地路径。
-提示词南郭产出最终提示词后，API 会受控调用 `render_prompt_demo_audio` 生成中间 demo 音频。KIE/Suno 音乐下载完成后，API 会受控调用 `summarize_generated_audio` 和 `render_waveform` 生成音频元数据与波形图；这些后处理工具失败时会写入错误字段和日志，不阻断主音乐生成结果。
-
-## 测试
-
-```bash
-uv run pytest
-```
-
-前端验证：
-
-```bash
-cd frontend
-npm run lint
-npm run build
-npm run test:e2e
-```
-
-## 目录
-
-- `agents/`：Agent 节点。
-- `app/`：LangGraph 工作流。
-- `models/`：结构化状态和输出模型。
-- `prompts/`：各角色的系统提示词。
-- `skills/`：各角色加载的技能说明。
-- `lib/`：提示词加载、音乐服务等工具。
-- `tools/`：音频分析、预览生成、波形渲染和 demo 音频渲染工具。
-- `providers/`：音乐生成供应商适配。
-- `frontend/`：本地 React 创作工作台。
-- `docs/`：架构与设计说明。
-- `data/`：本地项目、上传资产和运行数据，不提交版本库。
-
-开发约束见 [AGENTS.md](AGENTS.md)，当前架构见 [docs/architecture.md](docs/architecture.md)。
+- `data/`：项目、会话、偏好和上传资产
+- `works/`：生成的音乐、封面、演示音频和波形
+- `_logs/`：本地运行日志
