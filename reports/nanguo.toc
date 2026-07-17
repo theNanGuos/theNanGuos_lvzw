@@ -4,7 +4,7 @@
 \contentsline {section}{\numberline {2}需求分析与总体设计}{1}{section.2}%
 \contentsline {subsection}{\numberline {2.1}任务特点}{1}{subsection.2.1}%
 \contentsline {subsection}{\numberline {2.2}项目结构}{2}{subsection.2.2}%
-\contentsline {subsection}{\numberline {2.3}四层架构}{3}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.3}四层架构}{2}{subsection.2.3}%
 \contentsline {subsection}{\numberline {2.4}技术选型}{4}{subsection.2.4}%
 \contentsline {section}{\numberline {3}多智能体系统设计}{4}{section.3}%
 \contentsline {subsection}{\numberline {3.1}角色划分与职责边界}{4}{subsection.3.1}%
