@@ -438,7 +438,8 @@ start_services() {
   BACKEND_PID="$!"
 
   log "启动前端: http://$FRONTEND_HOST:$FRONTEND_PORT"
-  npm --prefix "$FRONTEND_DIR" run dev -- \
+  VITE_API_PROXY_TARGET="${VITE_API_PROXY_TARGET:-http://$BACKEND_HOST:$BACKEND_PORT}" \
+    npm --prefix "$FRONTEND_DIR" run dev -- \
     --host "$FRONTEND_HOST" \
     --port "$FRONTEND_PORT" &
   FRONTEND_PID="$!"

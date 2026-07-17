@@ -47,10 +47,11 @@ test('switches and manages isolated chat sessions', async ({ page }) => {
       updated_at: now,
     },
   ]
-  await page.route('http://127.0.0.1:8000/api/portfolio', (route) => route.fulfill({ json: [] }))
-  await page.route('http://127.0.0.1:8000/api/sessions**', async (route) => {
+  await page.route('**/api/portfolio', (route) => route.fulfill({ json: [] }))
+  await page.route('**/api/sessions**', async (route) => {
     const request = route.request()
     const url = new URL(request.url())
+    expect(url.origin).toBe('http://127.0.0.1:5173')
     const sessionId = url.pathname.split('/').at(-1)
     if (url.pathname === '/api/sessions') {
       await route.fulfill({ json: sessions })
@@ -127,10 +128,10 @@ test('renders a persisted workflow run and playable result inside chat', async (
     created_at: now,
     updated_at: now,
   }
-  await page.route('http://127.0.0.1:8000/api/portfolio', (route) => route.fulfill({ json: [] }))
-  await page.route('http://127.0.0.1:8000/api/sessions', (route) => route.fulfill({ json: [session] }))
-  await page.route('http://127.0.0.1:8000/api/sessions/session-workflow', (route) => route.fulfill({ json: session }))
-  await page.route('http://127.0.0.1:8000/api/projects/project-chat', (route) => route.fulfill({
+  await page.route('**/api/portfolio', (route) => route.fulfill({ json: [] }))
+  await page.route('**/api/sessions', (route) => route.fulfill({ json: [session] }))
+  await page.route('**/api/sessions/session-workflow', (route) => route.fulfill({ json: session }))
+  await page.route('**/api/projects/project-chat', (route) => route.fulfill({
     json: {
       id: 'project-chat',
       title: '霓虹雨夜',
@@ -142,7 +143,7 @@ test('renders a persisted workflow run and playable result inside chat', async (
       latest_run_id: 'run-chat',
     },
   }))
-  await page.route('http://127.0.0.1:8000/api/projects/project-chat/runs/run-chat', (route) => route.fulfill({
+  await page.route('**/api/projects/project-chat/runs/run-chat', (route) => route.fulfill({
     json: {
       id: 'run-chat',
       project_id: 'project-chat',
@@ -197,15 +198,15 @@ test('sends a chat prompt with a persisted audio attachment', async ({ page }) =
     updated_at: now,
   }
   let sentAssetIds: string[] = []
-  await page.route('http://127.0.0.1:8000/api/portfolio', (route) => route.fulfill({ json: [] }))
-  await page.route('http://127.0.0.1:8000/api/sessions', async (route) => {
+  await page.route('**/api/portfolio', (route) => route.fulfill({ json: [] }))
+  await page.route('**/api/sessions', async (route) => {
     if (route.request().method() === 'POST') {
       await route.fulfill({ status: 201, json: session })
       return
     }
     await route.fulfill({ json: session.messages.length ? [session] : [] })
   })
-  await page.route('http://127.0.0.1:8000/api/sessions/session-upload/assets', async (route) => {
+  await page.route('**/api/sessions/session-upload/assets', async (route) => {
     const attachment = {
       id: 'audio-1',
       filename: 'reference-demo.wav',
@@ -216,7 +217,7 @@ test('sends a chat prompt with a persisted audio attachment', async ({ page }) =
     session = { ...session, assets: [attachment] }
     await route.fulfill({ status: 201, json: attachment })
   })
-  await page.route('http://127.0.0.1:8000/api/sessions/session-upload/messages', async (route) => {
+  await page.route('**/api/sessions/session-upload/messages', async (route) => {
     const payload = route.request().postDataJSON() as { content: string; asset_ids: string[] }
     sentAssetIds = payload.asset_ids
     session = {
@@ -298,9 +299,9 @@ test('manages normalized long-term preferences in the memory library', async ({ 
     workflow_counts: { electronic_instrumental: 4, soundtrack_score: 2 },
     updated_at: now,
   }
-  await page.route('http://127.0.0.1:8000/api/portfolio', (route) => route.fulfill({ json: [] }))
-  await page.route('http://127.0.0.1:8000/api/sessions', (route) => route.fulfill({ json: [] }))
-  await page.route('http://127.0.0.1:8000/api/memory**', async (route) => {
+  await page.route('**/api/portfolio', (route) => route.fulfill({ json: [] }))
+  await page.route('**/api/sessions', (route) => route.fulfill({ json: [] }))
+  await page.route('**/api/memory**', async (route) => {
     const request = route.request()
     if (request.method() === 'PATCH') {
       const payload = request.postDataJSON() as { value: string }
@@ -341,7 +342,7 @@ test('manages normalized long-term preferences in the memory library', async ({ 
 })
 
 test('renders the portfolio as a cover-led music library', async ({ page }) => {
-  await page.route('http://127.0.0.1:8000/api/portfolio', async (route) => {
+  await page.route('**/api/portfolio', async (route) => {
     await route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify([
