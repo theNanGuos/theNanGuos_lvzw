@@ -210,6 +210,7 @@ def create_app(
         allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
         allow_methods=["*"],
         allow_headers=["*"],
+        allow_private_network=True,
     )
     project_store = store or LocalProjectStore()
     sessions = session_store or LocalSessionStore()

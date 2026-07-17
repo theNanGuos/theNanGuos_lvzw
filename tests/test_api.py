@@ -111,6 +111,24 @@ def make_client(tmp_path):
     return TestClient(app), store, runner, generator
 
 
+def test_cors_allows_private_network_preflight_from_local_frontend(tmp_path):
+    client, *_ = make_client(tmp_path)
+
+    response = client.options(
+        "/api/sessions",
+        headers={
+            "Origin": "http://127.0.0.1:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+            "Access-Control-Request-Private-Network": "true",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
+    assert response.headers["access-control-allow-private-network"] == "true"
+
+
 def test_generation_options_follow_structured_vocal_flag_for_new_workflows():
     model = Project(title="新类型", user_request="创作音乐")
     vocal = generation_options(
